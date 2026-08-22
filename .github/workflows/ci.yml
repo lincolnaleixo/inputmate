@@ -42,5 +42,36 @@ jobs:
             = "https://github.com/matrix-hq/inputmate/releases/latest/download/appcast.xml"
           test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")"
 
+      - name: Verify DMG installer
+        shell: bash
+        run: |
+          dmg=.build/app/InputMate-test.dmg
+          zsh scripts/create-dmg.sh .build/app/InputMate.app "$dmg"
+          hdiutil verify "$dmg" >/dev/null
+
+          mount_dir="$(mktemp -d)"
+          device=""
+          cleanup() {
+            if [[ -n "$device" ]]; then
+              hdiutil detach "$device" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$mount_dir"
+          }
+          trap cleanup EXIT
+
+          attach_output="$(
+            hdiutil attach "$dmg" \
+              -nobrowse \
+              -readonly \
+              -mountpoint "$mount_dir"
+          )"
+          device="$(printf '%s\n' "$attach_output" | awk 'NR == 1 { print $1 }')"
+
+          test -d "$mount_dir/InputMate.app"
+          test -L "$mount_dir/Applications"
+          test "$(readlink "$mount_dir/Applications")" = "/Applications"
+          codesign --verify --deep --strict --verbose=2 \
+            "$mount_dir/InputMate.app"
+
       - name: Verify signed appcast generation
         run: zsh scripts/test-appcast.sh
