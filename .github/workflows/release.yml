@@ -82,9 +82,13 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent \
             .build/app/InputMate.app \
             dist/InputMate.app.zip
+          zsh scripts/create-dmg.sh \
+            .build/app/InputMate.app \
+            dist/InputMate.dmg
           (
             cd dist
             shasum -a 256 InputMate.app.zip > InputMate.app.zip.sha256
+            shasum -a 256 InputMate.dmg > InputMate.dmg.sha256
           )
 
       - name: Generate signed Sparkle appcast
@@ -123,7 +127,10 @@ jobs:
           grep -Fq "$RELEASE_TAG/InputMate.app.zip" dist/appcast.xml
 
       - name: Preserve last signed Sparkle appcast
+        id: preserved-feed
         if: ${{ env.SPARKLE_PRIVATE_KEY == '' }}
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           test -f release/appcast.xml
@@ -131,18 +138,37 @@ jobs:
           grep -Fq '<!-- sparkle-signatures:' release/appcast.xml
           cp release/appcast.xml dist/appcast.xml
 
+          if grep -Fq \
+            "releases/download/$RELEASE_TAG/InputMate.app.zip" \
+            release/appcast.xml; then
+            echo "references_current_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "references_current_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish GitHub Release assets
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_SHA: ${{ steps.release.outputs.source_sha }}
+          PRESERVED_FEED_REFERENCES_CURRENT_TAG: ${{ steps.preserved-feed.outputs.references_current_tag }}
         shell: bash
         run: |
           assets=(
-            dist/InputMate.app.zip
-            dist/InputMate.app.zip.sha256
-            dist/appcast.xml
+            dist/InputMate.dmg
+            dist/InputMate.dmg.sha256
           )
+
+          if [[ -n "$SPARKLE_PRIVATE_KEY" || \
+                "$PRESERVED_FEED_REFERENCES_CURRENT_TAG" != "true" ]]; then
+            assets+=(
+              dist/InputMate.app.zip
+              dist/InputMate.app.zip.sha256
+              dist/appcast.xml
+            )
+          else
+            echo "Keeping the existing signed ZIP and appcast for $RELEASE_TAG."
+          fi
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
@@ -152,3 +178,9 @@ jobs:
               --title "InputMate $RELEASE_TAG" \
               --generate-notes
           fi
+
+          release_assets="$(
+            gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name'
+          )"
+          grep -qx 'InputMate.dmg' <<< "$release_assets"
+          grep -qx 'InputMate.dmg.sha256' <<< "$release_assets"
