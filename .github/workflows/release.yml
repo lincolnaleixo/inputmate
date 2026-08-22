@@ -2,18 +2,25 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+    paths:
+      - version.txt
+      - CHANGELOG.md
+      - .release-please-manifest.json
   workflow_call:
     inputs:
       tag:
         description: Existing semantic-version tag to publish
-        required: true
+        required: false
+        default: ''
         type: string
     secrets:
       SPARKLE_PRIVATE_KEY:
-        description: Base64-encoded Sparkle Ed25519 private seed
-        required: true
+        description: Optional base64-encoded Sparkle Ed25519 private seed
+        required: false
 
 permissions:
   contents: write
@@ -24,24 +31,34 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+
       - name: Resolve release metadata
         id: release
         env:
           CALLED_TAG: ${{ inputs.tag }}
         shell: bash
         run: |
-          TAG="${CALLED_TAG:-$GITHUB_REF_NAME}"
+          if [[ -n "$CALLED_TAG" ]]; then
+            TAG="$CALLED_TAG"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            VERSION="$(tr -d '[:space:]' < version.txt)"
+            TAG="v$VERSION"
+          fi
+
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Expected a semantic version tag such as v0.1.0, got: $TAG" >&2
             exit 1
           fi
+
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Check out release tag
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.release.outputs.tag }}
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Show Swift version
         run: swift --version
@@ -69,16 +86,12 @@ jobs:
           )
 
       - name: Generate signed Sparkle appcast
+        if: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         shell: bash
         run: |
-          if [[ -z "$SPARKLE_PRIVATE_KEY" ]]; then
-            echo "SPARKLE_PRIVATE_KEY is not configured in repository Actions secrets." >&2
-            exit 1
-          fi
-
           GENERATE_APPCAST="$(
             find "$GITHUB_WORKSPACE/.build/artifacts" \
               -type f -name generate_appcast -print -quit
@@ -112,18 +125,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_SHA: ${{ steps.release.outputs.source_sha }}
         shell: bash
         run: |
           assets=(
             dist/InputMate.app.zip
             dist/InputMate.app.zip.sha256
-            dist/appcast.xml
           )
+          if [[ -f dist/appcast.xml ]]; then
+            assets+=(dist/appcast.xml)
+          fi
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --target "$RELEASE_SHA" \
               --title "InputMate $RELEASE_TAG" \
               --generate-notes
           fi
