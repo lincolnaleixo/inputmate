@@ -41,3 +41,6 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" \
             = "https://github.com/matrix-hq/inputmate/releases/latest/download/appcast.xml"
           test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")"
+
+      - name: Verify signed appcast generation
+        run: zsh scripts/test-appcast.sh
