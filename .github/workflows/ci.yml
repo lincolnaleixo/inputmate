@@ -55,7 +55,7 @@ jobs:
             if [[ -n "$device" ]]; then
               hdiutil detach "$device" >/dev/null 2>&1 || true
             fi
-            rm -rf "$mount_dir"
+            rm -rf "$mount_dir" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
@@ -65,13 +65,25 @@ jobs:
               -readonly \
               -mountpoint "$mount_dir"
           )"
-          device="$(printf '%s\n' "$attach_output" | awk 'NR == 1 { print $1 }')"
+          device="$(
+            printf '%s\n' "$attach_output" |
+              awk -v mount="$mount_dir" '$NF == mount { print $1; exit }'
+          )"
+          if [[ -z "$device" ]]; then
+            echo "Unable to identify the mounted DMG device." >&2
+            exit 1
+          fi
 
           test -d "$mount_dir/InputMate.app"
           test -L "$mount_dir/Applications"
           test "$(readlink "$mount_dir/Applications")" = "/Applications"
           codesign --verify --deep --strict --verbose=2 \
             "$mount_dir/InputMate.app"
+
+          hdiutil detach "$device" >/dev/null
+          device=""
+          rm -rf "$mount_dir"
+          trap - EXIT
 
       - name: Verify signed appcast generation
         run: zsh scripts/test-appcast.sh
