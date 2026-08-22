@@ -1,0 +1,46 @@
+name: Report v0.1.1 Homebrew checksum
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/report-v0.1.1-homebrew.yml
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download and verify the published DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p release
+          gh release download v0.1.1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern InputMate.dmg \
+            --pattern InputMate.dmg.sha256 \
+            --dir release
+          (
+            cd release
+            sha256sum -c InputMate.dmg.sha256
+          )
+
+      - name: Report the checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          checksum="$(awk '{ print $1 }' release/InputMate.dmg.sha256)"
+          [[ "$checksum" =~ ^[0-9a-f]{64}$ ]]
+          gh pr comment 9 \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "homebrew-dmg-sha256:$checksum"
