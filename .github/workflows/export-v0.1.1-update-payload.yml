@@ -1,0 +1,72 @@
+name: Export v0.1.1 Update Payload
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/export-v0.1.1-update-payload.yml
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download published v0.1.1 payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p payload
+          gh release download v0.1.1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern InputMate.app.zip \
+            --pattern InputMate.app.zip.sha256 \
+            --dir payload
+          (
+            cd payload
+            sha256sum -c InputMate.app.zip.sha256
+          )
+
+      - name: Verify published bundle versions
+        shell: bash
+        run: |
+          mkdir -p extracted
+          unzip -q payload/InputMate.app.zip -d extracted
+          python3 - <<'PY'
+          import pathlib, plistlib
+
+          matches = list(pathlib.Path('extracted').rglob('InputMate.app/Contents/Info.plist'))
+          if len(matches) != 1:
+              raise SystemExit(f'expected one InputMate Info.plist, found {len(matches)}')
+          with matches[0].open('rb') as handle:
+              info = plistlib.load(handle)
+          assert info['CFBundleShortVersionString'] == '0.1.1', info
+          assert info['CFBundleVersion'] == '1.1.1', info
+          print('verified InputMate 0.1.1 (1.1.1)')
+          PY
+
+      - name: Upload exact published update payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: inputmate-v0.1.1-update-payload
+          path: |
+            payload/InputMate.app.zip
+            payload/InputMate.app.zip.sha256
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Report artifact run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh pr comment 9 \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "update-payload-run:${GITHUB_RUN_ID} version:0.1.1 build:1.1.1"
