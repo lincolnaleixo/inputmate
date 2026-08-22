@@ -80,4 +80,4 @@ If you discover a security issue, avoid including secrets or private user data i
 
 ## License
 
-No open-source license has been selected yet. Until a license is added, copyright law reserves the usual rights to the repository owner.
+InputMate is licensed under the GNU General Public License version 3 only (`GPL-3.0-only`). See [`LICENSE`](LICENSE) for the complete terms.
