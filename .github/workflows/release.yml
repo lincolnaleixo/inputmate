@@ -225,7 +225,7 @@ jobs:
           }
           trap cleanup EXIT
 
-          brew install --cask --no-quarantine ./Casks/inputmate.rb
+          brew install --cask ./Casks/inputmate.rb
           installed=true
           test -d /Applications/InputMate.app
           installed_version="$(
