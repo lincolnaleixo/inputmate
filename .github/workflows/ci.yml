@@ -76,5 +76,39 @@ jobs:
           rm -rf "$mount_dir"
           trap - EXIT
 
+      - name: Verify Homebrew cask
+        shell: bash
+        run: |
+          version="$(awk -F'"' '/^  version / { print $2 }' Casks/inputmate.rb)"
+          checksum="$(awk -F'"' '/^  sha256 / { print $2 }' Casks/inputmate.rb)"
+          test -n "$version"
+          test -n "$checksum"
+
+          zsh scripts/update-homebrew-cask.sh "$version" "$checksum"
+          git diff --exit-code -- Casks/inputmate.rb
+          brew style Casks/inputmate.rb
+
+          installed=false
+          cleanup() {
+            if [[ "$installed" == true ]]; then
+              brew uninstall --cask inputmate >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+
+          brew install --cask --no-quarantine ./Casks/inputmate.rb
+          installed=true
+          test -d /Applications/InputMate.app
+          installed_version="$(
+            /usr/libexec/PlistBuddy \
+              -c 'Print :CFBundleShortVersionString' \
+              /Applications/InputMate.app/Contents/Info.plist
+          )"
+          test "$installed_version" = "$version"
+
+          brew uninstall --cask inputmate
+          installed=false
+          trap - EXIT
+
       - name: Verify signed appcast generation
         run: zsh scripts/test-appcast.sh
