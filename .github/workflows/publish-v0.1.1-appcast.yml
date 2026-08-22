@@ -1,0 +1,72 @@
+name: Publish v0.1.1 Sparkle Feed
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-v0.1.1-appcast.yml
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify signed feed matches published payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          grep -Fq '<sparkle:version>1.1.1</sparkle:version>' release/appcast.xml
+          grep -Fq '<sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>' release/appcast.xml
+          grep -Fq 'releases/download/v0.1.1/InputMate.app.zip' release/appcast.xml
+          grep -Fq 'sparkle:edSignature=' release/appcast.xml
+          grep -Fq '<!-- sparkle-signatures:' release/appcast.xml
+
+          mkdir -p published
+          gh release download v0.1.1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern InputMate.app.zip \
+            --pattern InputMate.app.zip.sha256 \
+            --dir published
+          (
+            cd published
+            sha256sum -c InputMate.app.zip.sha256
+          )
+          archive_length="$(stat -c '%s' published/InputMate.app.zip)"
+          grep -Fq "length=\"$archive_length\"" release/appcast.xml
+
+      - name: Replace release appcast with signed v0.1.1 feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload v0.1.1 \
+            --repo "$GITHUB_REPOSITORY" \
+            release/appcast.xml \
+            --clobber
+
+          mkdir -p verify
+          gh release download v0.1.1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern appcast.xml \
+            --dir verify
+          cmp release/appcast.xml verify/appcast.xml
+
+      - name: Report completion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh pr comment 9 \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "sparkle-feed-run:${GITHUB_RUN_ID} tag:v0.1.1 build:1.1.1 status:success"
