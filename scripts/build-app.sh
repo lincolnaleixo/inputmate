@@ -27,9 +27,10 @@ if [[ -e "$app_path" ]]; then
   rm -rf -- "$app_path"
 fi
 
-mkdir -p "$app_path/Contents/MacOS"
+mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
 cp "$package_root/App/Info.plist" "$app_path/Contents/Info.plist"
 cp "$binary_dir/InputMate" "$app_path/Contents/MacOS/InputMate"
+cp "$package_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
 
 # Keep the bundle identifier overridable without storing machine-specific
 # signing configuration in the repository.
