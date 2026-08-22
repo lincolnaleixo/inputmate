@@ -72,8 +72,24 @@ jobs:
         env:
           CODESIGN_IDENTITY: '-'
           INPUTMATE_VERSION: ${{ steps.release.outputs.version }}
-          INPUTMATE_BUILD_VERSION: ${{ steps.release.outputs.version }}
         run: zsh scripts/build-app.sh
+
+      - name: Verify release version ordering
+        shell: bash
+        run: |
+          short_version="$(
+            /usr/libexec/PlistBuddy \
+              -c 'Print :CFBundleShortVersionString' \
+              .build/app/InputMate.app/Contents/Info.plist
+          )"
+          build_version="$(
+            /usr/libexec/PlistBuddy \
+              -c 'Print :CFBundleVersion' \
+              .build/app/InputMate.app/Contents/Info.plist
+          )"
+          test "$short_version" = "${{ steps.release.outputs.version }}"
+          test "$build_version" != "$short_version"
+          echo "InputMate $short_version uses Sparkle build version $build_version"
 
       - name: Package release
         shell: bash
