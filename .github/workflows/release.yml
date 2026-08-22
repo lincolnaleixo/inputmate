@@ -256,21 +256,36 @@ jobs:
           trap - EXIT
 
       - name: Commit Homebrew cask update
-        if: ${{ github.ref == 'refs/heads/main' }}
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
         shell: bash
         run: |
-          git add Casks/inputmate.rb
-          if git diff --cached --quiet; then
-            echo "Homebrew cask is already current."
-            exit 0
-          fi
+          cask_snapshot="$RUNNER_TEMP/inputmate.rb"
+          cp Casks/inputmate.rb "$cask_snapshot"
 
           git config user.name "github-actions[bot]"
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: update Homebrew cask to $RELEASE_VERSION"
-          git fetch origin main
-          git rebase origin/main
-          git push origin HEAD:main
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B homebrew-cask-update origin/main
+            mkdir -p Casks
+            cp "$cask_snapshot" Casks/inputmate.rb
+            git add Casks/inputmate.rb
+
+            if git diff --cached --quiet; then
+              echo "Homebrew cask is already current."
+              exit 0
+            fi
+
+            git commit -m "chore: update Homebrew cask to $RELEASE_VERSION"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push attempt $attempt failed; retrying on the latest main."
+          done
+
+          echo "Unable to persist the Homebrew cask update." >&2
+          exit 1
