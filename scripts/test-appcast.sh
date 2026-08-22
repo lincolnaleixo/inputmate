@@ -12,6 +12,21 @@ trap 'rm -rf "$temporary_directory"' EXIT
   exit 1
 }
 
+short_version="$(
+  /usr/libexec/PlistBuddy \
+    -c 'Print :CFBundleShortVersionString' \
+    "$app/Contents/Info.plist"
+)"
+build_version="$(
+  /usr/libexec/PlistBuddy \
+    -c 'Print :CFBundleVersion' \
+    "$app/Contents/Info.plist"
+)"
+[[ "$short_version" != "$build_version" ]] || {
+  print -u2 -- "test-appcast.sh: public semver must not be reused as Sparkle build version"
+  exit 1
+}
+
 key_output="$(
   /usr/bin/swift -e '
     import CryptoKit
@@ -59,7 +74,7 @@ printf '%s' "$private_key" |
   "$generate_appcast" \
     --ed-key-file - \
     --download-url-prefix \
-      "https://example.invalid/releases/download/v0.1.0/" \
+      "https://example.invalid/releases/download/v$short_version/" \
     --maximum-versions 1 \
     --maximum-deltas 0 \
     -o "$temporary_directory/appcast.xml" \
@@ -67,7 +82,13 @@ printf '%s' "$private_key" |
 
 /usr/bin/grep -Fq 'sparkle:edSignature=' "$temporary_directory/appcast.xml"
 /usr/bin/grep -Fq \
-  'https://example.invalid/releases/download/v0.1.0/InputMate.app.zip' \
+  "https://example.invalid/releases/download/v$short_version/InputMate.app.zip" \
+  "$temporary_directory/appcast.xml"
+/usr/bin/grep -Fq \
+  "<sparkle:version>$build_version</sparkle:version>" \
+  "$temporary_directory/appcast.xml"
+/usr/bin/grep -Fq \
+  "<sparkle:shortVersionString>$short_version</sparkle:shortVersionString>" \
   "$temporary_directory/appcast.xml"
 
-print -- "test-appcast.sh: signed appcast generation succeeded"
+print -- "test-appcast.sh: signed appcast generation succeeded for $short_version ($build_version)"
