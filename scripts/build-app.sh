@@ -26,9 +26,24 @@ fail() {
 
 source_version="$(tr -d '[:space:]' < "$package_root/version.txt")"
 version="${INPUTMATE_VERSION:-$source_version}"
-build_version="${INPUTMATE_BUILD_VERSION:-$version}"
 [[ "$version" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]] ||
   fail "invalid application version: $version"
+
+# Sparkle compares CFBundleVersion, not CFBundleShortVersionString. InputMate's
+# private/pre-public builds used CFBundleVersion=1, so using the public semver
+# directly (for example 0.1.0) makes Sparkle treat the first public release as
+# older than those builds. Keep the user-facing semver unchanged and map it to
+# a monotonically ordered build version by offsetting the major component.
+#
+#   0.1.0 -> 1.1.0
+#   0.1.1 -> 1.1.1
+#   1.0.0 -> 2.0.0
+#
+# INPUTMATE_BUILD_VERSION remains available for explicit release engineering
+# overrides, but normal builds should rely on this deterministic mapping.
+version_parts=("${(@s:.:)version}")
+default_build_version="$((version_parts[1] + 1)).${version_parts[2]}.${version_parts[3]}"
+build_version="${INPUTMATE_BUILD_VERSION:-$default_build_version}"
 [[ "$build_version" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]] ||
   fail "invalid build version: $build_version"
 
@@ -57,7 +72,7 @@ cp "$package_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
   "$app_path/Contents/Frameworks/Sparkle.framework"
 
 # Keep release and signing metadata outside source-controlled machine-specific
-# configuration while ensuring every packaged bundle has monotonic semver.
+# configuration while ensuring every packaged bundle has monotonic versions.
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $bundle_id" \
   "$app_path/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" \
