@@ -10,7 +10,6 @@ on:
       - version.txt
       - CHANGELOG.md
       - .release-please-manifest.json
-      - .github/workflows/release.yml
   workflow_call:
     inputs:
       tag:
