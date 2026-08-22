@@ -1,0 +1,65 @@
+#!/bin/zsh
+set -euo pipefail
+
+ROOT="${0:A:h:h}"
+APP="$ROOT/.build/app/InputMate.app"
+DESTINATION="${INPUTMATE_INSTALL_DESTINATION:-/Applications/InputMate.app}"
+
+usage() {
+  cat <<'EOF'
+Usage: zsh scripts/mac <command>
+
+Commands:
+  doctor   Verify the local macOS development prerequisites.
+  test     Run the Swift package policy tests.
+  build    Build and sign InputMate.app locally.
+  install  Build and copy InputMate.app to /Applications.
+  run      Build and launch InputMate.app.
+EOF
+}
+
+die() {
+  print -u2 -- "scripts/mac: $*"
+  exit 1
+}
+
+doctor() {
+  [[ "$(uname -s)" == "Darwin" ]] || die "InputMate must be built on macOS"
+  command -v swift >/dev/null || die "Swift is not installed"
+  command -v codesign >/dev/null || die "codesign is not available"
+  command -v /usr/libexec/PlistBuddy >/dev/null || die "PlistBuddy is not available"
+  swift --version
+  print -- "scripts/mac: prerequisites look good"
+}
+
+run_tests() {
+  cd "$ROOT"
+  swift run InputMateTests
+}
+
+build_app() {
+  zsh "$ROOT/scripts/build-app.sh"
+}
+
+install_app() {
+  build_app
+  rm -rf -- "$DESTINATION"
+  ditto "$APP" "$DESTINATION"
+  print -- "scripts/mac: installed $DESTINATION"
+}
+
+run_app() {
+  build_app
+  open "$APP"
+}
+
+command="${1:-}"
+case "$command" in
+  doctor) doctor ;;
+  test) run_tests ;;
+  build) build_app ;;
+  install) install_app ;;
+  run) run_app ;;
+  -h|--help|help|"") usage ;;
+  *) usage; die "unknown command: $command" ;;
+esac

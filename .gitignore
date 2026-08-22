@@ -1,0 +1,22 @@
+.build/
+.swiftpm/
+*.xcuserstate
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+secrets.*
+*.secrets
+
+# Local release and signing output
+*.dSYM/
+*.xcarchive/
+.build/remote/
