@@ -15,9 +15,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>0.1.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>0.1.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>
@@ -28,5 +28,17 @@
     <string>InputMate uses System Events for configured system shortcuts such as sleep and Notification Center.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>SUFeedURL</key>
+    <string>https://github.com/matrix-hq/inputmate/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>Ajk5wlX31EhoWppw92zRhPhNjEGzwAPYbHWTVDssxAw=</string>
+    <key>SUAutomaticallyUpdate</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true/>
+    <key>SURequireSignedFeed</key>
+    <true/>
 </dict>
 </plist>
