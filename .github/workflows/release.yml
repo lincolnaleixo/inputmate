@@ -122,6 +122,15 @@ jobs:
           grep -Fq 'sparkle:edSignature=' dist/appcast.xml
           grep -Fq "$RELEASE_TAG/InputMate.app.zip" dist/appcast.xml
 
+      - name: Preserve last signed Sparkle appcast
+        if: ${{ env.SPARKLE_PRIVATE_KEY == '' }}
+        shell: bash
+        run: |
+          test -f release/appcast.xml
+          grep -Fq 'sparkle:edSignature=' release/appcast.xml
+          grep -Fq '<!-- sparkle-signatures:' release/appcast.xml
+          cp release/appcast.xml dist/appcast.xml
+
       - name: Publish GitHub Release assets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -132,10 +141,8 @@ jobs:
           assets=(
             dist/InputMate.app.zip
             dist/InputMate.app.zip.sha256
+            dist/appcast.xml
           )
-          if [[ -f dist/appcast.xml ]]; then
-            assets+=(dist/appcast.xml)
-          fi
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
