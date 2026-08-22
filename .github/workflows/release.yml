@@ -28,7 +28,7 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
 
@@ -36,6 +36,7 @@ jobs:
       - name: Check out release source
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           ref: ${{ inputs.tag || github.sha }}
 
       - name: Resolve release metadata
@@ -106,6 +107,18 @@ jobs:
             shasum -a 256 InputMate.app.zip > InputMate.app.zip.sha256
             shasum -a 256 InputMate.dmg > InputMate.dmg.sha256
           )
+
+      - name: Render Homebrew cask
+        id: homebrew
+        shell: bash
+        run: |
+          dmg_sha256="$(awk '{ print $1 }' dist/InputMate.dmg.sha256)"
+          [[ "$dmg_sha256" =~ ^[0-9a-f]{64}$ ]]
+          zsh scripts/update-homebrew-cask.sh \
+            "${{ steps.release.outputs.version }}" \
+            "$dmg_sha256"
+          echo "dmg_sha256=$dmg_sha256" >> "$GITHUB_OUTPUT"
+          brew style Casks/inputmate.rb
 
       - name: Generate signed Sparkle appcast
         if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
@@ -200,3 +213,48 @@ jobs:
           )"
           grep -qx 'InputMate.dmg' <<< "$release_assets"
           grep -qx 'InputMate.dmg.sha256' <<< "$release_assets"
+
+      - name: Verify Homebrew cask against the release
+        shell: bash
+        run: |
+          installed=false
+          cleanup() {
+            if [[ "$installed" == true ]]; then
+              brew uninstall --cask inputmate >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+
+          brew install --cask --no-quarantine ./Casks/inputmate.rb
+          installed=true
+          test -d /Applications/InputMate.app
+          installed_version="$(
+            /usr/libexec/PlistBuddy \
+              -c 'Print :CFBundleShortVersionString' \
+              /Applications/InputMate.app/Contents/Info.plist
+          )"
+          test "$installed_version" = "${{ steps.release.outputs.version }}"
+
+          brew uninstall --cask inputmate
+          installed=false
+          trap - EXIT
+
+      - name: Commit Homebrew cask update
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          git add Casks/inputmate.rb
+          if git diff --cached --quiet; then
+            echo "Homebrew cask is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: update Homebrew cask to $RELEASE_VERSION"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
