@@ -21,6 +21,29 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 
 ## Install
 
+### Homebrew
+
+The InputMate repository also acts as its upstream Homebrew tap:
+
+```sh
+brew tap matrix-hq/inputmate https://github.com/matrix-hq/inputmate
+brew install --cask matrix-hq/inputmate/inputmate
+```
+
+The fully qualified cask name lets Homebrew trust only InputMate instead of the entire third-party tap. The explicit repository URL is required because this application repository does not use a separate `homebrew-` repository.
+
+To update or uninstall through Homebrew:
+
+```sh
+brew update
+brew upgrade --cask matrix-hq/inputmate/inputmate
+brew uninstall --cask matrix-hq/inputmate/inputmate
+```
+
+InputMate is currently distributed through this upstream tap rather than the official `homebrew/cask` catalog because release builds are ad-hoc signed and are not yet notarized by Apple.
+
+### Manual installation
+
 Download the latest `InputMate.dmg` from GitHub Releases, open it, and drag `InputMate.app` onto the included **Applications** shortcut.
 
 The release also contains `InputMate.app.zip`, which is the compact payload used by Sparkle for in-app updates. The DMG is the primary installer for people downloading InputMate manually.
@@ -94,7 +117,8 @@ The release workflow:
 - creates `InputMate.app.zip` as the Sparkle update payload;
 - creates SHA-256 checksums for both packages;
 - generates and signs `appcast.xml` when the matching Sparkle private key is available;
-- uploads the installer, updater payload, checksums, and appcast to GitHub Releases.
+- uploads the installer, updater payload, checksums, and appcast to GitHub Releases;
+- refreshes `Casks/inputmate.rb` with the released version and exact DMG checksum.
 
 A manually pushed stable tag such as `v0.1.0` also invokes the same release workflow.
 
