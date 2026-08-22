@@ -215,17 +215,31 @@ jobs:
           grep -qx 'InputMate.dmg.sha256' <<< "$release_assets"
 
       - name: Verify Homebrew cask against the release
+        env:
+          HOMEBREW_NO_ASK: '1'
         shell: bash
         run: |
+          tap_name=matrix-hq/inputmate
+          cask_name="$tap_name/inputmate"
+          tapped=false
           installed=false
           cleanup() {
             if [[ "$installed" == true ]]; then
-              brew uninstall --cask inputmate >/dev/null 2>&1 || true
+              brew uninstall --cask "$cask_name" >/dev/null 2>&1 || true
+            fi
+            if [[ "$tapped" == true ]]; then
+              brew untap "$tap_name" >/dev/null 2>&1 || true
             fi
           }
           trap cleanup EXIT
 
-          brew install --cask ./Casks/inputmate.rb
+          brew tap-new "$tap_name"
+          tapped=true
+          tap_dir="$(brew --repository "$tap_name")"
+          mkdir -p "$tap_dir/Casks"
+          cp Casks/inputmate.rb "$tap_dir/Casks/inputmate.rb"
+
+          brew install --cask "$cask_name"
           installed=true
           test -d /Applications/InputMate.app
           installed_version="$(
@@ -235,8 +249,10 @@ jobs:
           )"
           test "$installed_version" = "${{ steps.release.outputs.version }}"
 
-          brew uninstall --cask inputmate
+          brew uninstall --cask "$cask_name"
           installed=false
+          brew untap "$tap_name"
+          tapped=false
           trap - EXIT
 
       - name: Commit Homebrew cask update
