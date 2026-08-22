@@ -10,6 +10,7 @@ on:
       - version.txt
       - CHANGELOG.md
       - .release-please-manifest.json
+      - .github/workflows/release.yml
   workflow_call:
     inputs:
       tag:
@@ -29,6 +30,8 @@ jobs:
   release:
     runs-on: macos-latest
     timeout-minutes: 30
+    env:
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
 
     steps:
       - name: Check out release source
@@ -86,10 +89,9 @@ jobs:
           )
 
       - name: Generate signed Sparkle appcast
-        if: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
+        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         shell: bash
         run: |
           GENERATE_APPCAST="$(
