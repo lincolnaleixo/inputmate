@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/matrix-hq/inputmate/compare/v0.1.0...v0.1.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* restore Sparkle update ordering ([ad8a41d](https://github.com/matrix-hq/inputmate/commit/ad8a41d5fa6fc367d021b7bd96ead2bbe4a9c8f6))
+
 ## 0.1.0 (2026-08-22)
 
 
