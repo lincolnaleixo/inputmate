@@ -12,7 +12,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -29,5 +29,18 @@ jobs:
           CODESIGN_IDENTITY: '-'
         run: zsh scripts/build-app.sh
 
-      - name: Verify app signature
-        run: codesign --verify --deep --strict --verbose=2 .build/app/InputMate.app
+      - name: Verify app bundle
+        shell: bash
+        run: |
+          app=.build/app/InputMate.app
+          test -d "$app/Contents/Frameworks/Sparkle.framework"
+          test -f "$app/Contents/Resources/LICENSE"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          otool -L "$app/Contents/MacOS/InputMate" |
+            grep -F '@rpath/Sparkle.framework/'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" \
+            = "https://github.com/matrix-hq/inputmate/releases/latest/download/appcast.xml"
+          test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")"
+
+      - name: Verify signed appcast generation
+        run: zsh scripts/test-appcast.sh

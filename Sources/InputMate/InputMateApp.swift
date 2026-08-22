@@ -1,12 +1,17 @@
 import SwiftUI
 
 @main
+@MainActor
 struct InputMateApp: App {
   @StateObject private var model = AppModel()
+  private let updateController = UpdateController()
 
   var body: some Scene {
     MenuBarExtra {
-      MenuContent(model: model)
+      MenuContent(
+        model: model,
+        updater: updateController.updater
+      )
     } label: {
       Image(systemName: model.menuBarSymbol)
         .accessibilityLabel("InputMate")

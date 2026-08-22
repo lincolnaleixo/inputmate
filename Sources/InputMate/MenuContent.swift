@@ -1,9 +1,12 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
+@MainActor
 struct MenuContent: View {
   @Environment(\.openWindow) private var openWindow
   @ObservedObject var model: AppModel
+  let updater: SPUUpdater
 
   var body: some View {
     Toggle(
@@ -68,6 +71,10 @@ struct MenuContent: View {
     if !model.hasCerebrasAPIKey {
       Label("Cerebras API key required", systemImage: "key")
     }
+
+    Divider()
+
+    CheckForUpdatesView(updater: updater)
 
     Toggle(
       "Open at Login",

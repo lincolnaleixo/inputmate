@@ -1,6 +1,6 @@
 # InputMate
 
-InputMate is a native macOS menu-bar utility for mouse and trackpad input, global keyboard shortcuts, and optional AI-backed text transformations.
+InputMate is a native macOS menu-bar utility for mouse and trackpad input, global keyboard shortcuts, optional AI-backed text transformations, and secure in-app updates.
 
 ## Features
 
@@ -9,6 +9,7 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 - Limit shortcuts to selected applications.
 - Open applications and URLs, run Apple Shortcuts, send keyboard shortcuts, press menu items, type text, and trigger macOS actions.
 - Transform selected text with Cerebras while storing the API key in macOS Keychain.
+- Check for, download, and install signed updates with Sparkle.
 - Launch automatically at login.
 
 ## Requirements
@@ -25,6 +26,12 @@ Download the latest `InputMate.app.zip` from GitHub Releases, unzip it, and move
 Public release builds are ad-hoc signed. macOS may require you to explicitly approve the first launch in **System Settings > Privacy & Security**. A future release process can add Developer ID signing and notarization without changing the source build.
 
 After launching InputMate, grant Accessibility access when prompted if you enable mouse reversal or keyboard shortcuts.
+
+## Automatic updates
+
+InputMate uses Sparkle 2. The menu includes **Check for Updates…** for a user-initiated check. On the second launch, Sparkle asks whether it may check automatically in the background. Automatic download and installation is selected by default in that consent prompt, and the user remains in control of the preference.
+
+The app reads its signed appcast from the latest GitHub Release. Every update archive and the appcast itself are signed with a dedicated Ed25519 key, and InputMate verifies the update before extraction.
 
 ## AI text transformations
 
@@ -57,7 +64,9 @@ zsh scripts/mac build
 open .build/app/InputMate.app
 ```
 
-The build script uses ad-hoc signing by default so it works without private signing material. To use your own stable Apple signing identity:
+The build script uses ad-hoc signing by default so it works without private Apple signing material. It embeds Sparkle, the GPL license, and the version recorded in `version.txt`.
+
+To use your own stable Apple signing identity:
 
 ```sh
 CODESIGN_IDENTITY="Apple Development: Your Name (TEAMID)" zsh scripts/build-app.sh
@@ -67,11 +76,25 @@ You can also provide `CODESIGN_REQUIREMENT` if you need to preserve a specific d
 
 ## Releases
 
-Pushing a tag such as `v0.1.0` triggers the release workflow. The workflow runs the test suite on a GitHub-hosted macOS runner, builds an ad-hoc signed app, packages `InputMate.app.zip`, creates a SHA-256 checksum, and publishes both files to GitHub Releases.
+Release Please watches conventional commits on `main` and maintains a release pull request with the next semantic version and changelog. Merging that release pull request creates the version tag and GitHub Release, then invokes the macOS release workflow in the same Actions run.
+
+The release workflow:
+
+- runs the policy tests;
+- builds and validates `InputMate.app` on a GitHub-hosted macOS runner;
+- packages `InputMate.app.zip` and its SHA-256 checksum;
+- signs the update with the Sparkle Ed25519 private key;
+- generates a signed `appcast.xml`;
+- uploads all three files to GitHub Releases.
+
+A manually pushed stable tag such as `v0.1.0` also invokes the same release workflow.
+
+Maintainers must configure the repository Actions secret `SPARKLE_PRIVATE_KEY` with the Base64-encoded private seed that matches the `SUPublicEDKey` embedded in `App/Info.plist`. Never commit that value.
 
 ## Security
 
 - API credentials belong in macOS Keychain.
+- The Sparkle private update key belongs only in GitHub Actions secrets and an offline backup.
 - Signing identities and certificates are local configuration and must not be committed.
 - Environment files, private keys, certificates, provisioning profiles, and common local secret files are ignored by Git.
 - Selected text is not written to application logs.

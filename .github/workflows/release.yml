@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing semantic-version tag to publish
+        required: true
+        type: string
+    secrets:
+      SPARKLE_PRIVATE_KEY:
+        description: Base64-encoded Sparkle Ed25519 private seed
+        required: true
 
 permissions:
   contents: write
@@ -11,19 +21,27 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Validate release tag
+      - name: Resolve release metadata
+        id: release
+        env:
+          CALLED_TAG: ${{ inputs.tag }}
         shell: bash
         run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Expected a semantic version tag such as v0.1.0, got: $GITHUB_REF_NAME" >&2
+          TAG="${CALLED_TAG:-$GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a semantic version tag such as v0.1.0, got: $TAG" >&2
             exit 1
           fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
 
       - name: Show Swift version
         run: swift --version
@@ -31,16 +49,11 @@ jobs:
       - name: Run policy tests
         run: swift run InputMateTests
 
-      - name: Set bundle version
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" App/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" App/Info.plist
-
       - name: Build app bundle
         env:
           CODESIGN_IDENTITY: '-'
+          INPUTMATE_VERSION: ${{ steps.release.outputs.version }}
+          INPUTMATE_BUILD_VERSION: ${{ steps.release.outputs.version }}
         run: zsh scripts/build-app.sh
 
       - name: Package release
@@ -55,20 +68,62 @@ jobs:
             shasum -a 256 InputMate.app.zip > InputMate.app.zip.sha256
           )
 
-      - name: Publish GitHub Release
+      - name: Generate signed Sparkle appcast
         env:
-          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         shell: bash
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" \
-              dist/InputMate.app.zip \
-              dist/InputMate.app.zip.sha256 \
-              --clobber
+          if [[ -z "$SPARKLE_PRIVATE_KEY" ]]; then
+            echo "SPARKLE_PRIVATE_KEY is not configured in repository Actions secrets." >&2
+            exit 1
+          fi
+
+          GENERATE_APPCAST="$(
+            find "$GITHUB_WORKSPACE/.build/artifacts" \
+              -type f -name generate_appcast -print -quit
+          )"
+          if [[ -z "$GENERATE_APPCAST" ]]; then
+            echo "Sparkle generate_appcast tool was not found." >&2
+            exit 1
+          fi
+          chmod +x "$GENERATE_APPCAST"
+
+          mkdir -p dist/appcast-source
+          cp dist/InputMate.app.zip dist/appcast-source/InputMate.app.zip
+
+          printf '%s' "$SPARKLE_PRIVATE_KEY" |
+            "$GENERATE_APPCAST" \
+              --ed-key-file - \
+              --download-url-prefix \
+                "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/" \
+              --full-release-notes-url \
+                "https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG" \
+              --link "https://github.com/$GITHUB_REPOSITORY" \
+              --maximum-versions 1 \
+              --maximum-deltas 0 \
+              -o "$GITHUB_WORKSPACE/dist/appcast.xml" \
+              "$GITHUB_WORKSPACE/dist/appcast-source"
+
+          grep -Fq 'sparkle:edSignature=' dist/appcast.xml
+          grep -Fq "$RELEASE_TAG/InputMate.app.zip" dist/appcast.xml
+
+      - name: Publish GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          assets=(
+            dist/InputMate.app.zip
+            dist/InputMate.app.zip.sha256
+            dist/appcast.xml
+          )
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" \
-              dist/InputMate.app.zip \
-              dist/InputMate.app.zip.sha256 \
-              --title "InputMate $GITHUB_REF_NAME" \
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --title "InputMate $RELEASE_TAG" \
               --generate-notes
           fi

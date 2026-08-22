@@ -11,6 +11,12 @@ let package = Package(
     .executable(name: "InputMate", targets: ["InputMate"]),
     .executable(name: "InputMateTests", targets: ["InputMateTests"]),
   ],
+  dependencies: [
+    .package(
+      url: "https://github.com/sparkle-project/Sparkle",
+      exact: "2.9.6"
+    ),
+  ],
   targets: [
     .target(
       name: "InputMateCore",
@@ -18,8 +24,17 @@ let package = Package(
     ),
     .executableTarget(
       name: "InputMate",
-      dependencies: ["InputMateCore"],
-      path: "Sources/InputMate"
+      dependencies: [
+        "InputMateCore",
+        .product(name: "Sparkle", package: "Sparkle"),
+      ],
+      path: "Sources/InputMate",
+      linkerSettings: [
+        .unsafeFlags([
+          "-Xlinker", "-rpath",
+          "-Xlinker", "@executable_path/../Frameworks",
+        ])
+      ]
     ),
     .executableTarget(
       name: "InputMateTests",
