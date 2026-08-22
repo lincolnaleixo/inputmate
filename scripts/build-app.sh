@@ -24,6 +24,14 @@ fail() {
   exit 1
 }
 
+source_version="$(tr -d '[:space:]' < "$package_root/version.txt")"
+version="${INPUTMATE_VERSION:-$source_version}"
+build_version="${INPUTMATE_BUILD_VERSION:-$version}"
+[[ "$version" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]] ||
+  fail "invalid application version: $version"
+[[ "$build_version" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]] ||
+  fail "invalid build version: $build_version"
+
 cd "$package_root"
 swift build --configuration "$configuration" --product InputMate
 binary_dir="$(swift build --configuration "$configuration" --show-bin-path)"
@@ -48,9 +56,13 @@ cp "$package_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
   "$sparkle_framework" \
   "$app_path/Contents/Frameworks/Sparkle.framework"
 
-# Keep the bundle identifier overridable without storing machine-specific
-# signing configuration in the repository.
+# Keep release and signing metadata outside source-controlled machine-specific
+# configuration while ensuring every packaged bundle has monotonic semver.
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $bundle_id" \
+  "$app_path/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" \
+  "$app_path/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build_version" \
   "$app_path/Contents/Info.plist"
 
 /usr/bin/otool -L "$app_path/Contents/MacOS/InputMate" |
