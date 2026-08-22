@@ -77,6 +77,8 @@ jobs:
           trap - EXIT
 
       - name: Verify Homebrew cask
+        env:
+          HOMEBREW_NO_ASK: '1'
         shell: bash
         run: |
           version="$(awk -F'"' '/^  version / { print $2 }' Casks/inputmate.rb)"
@@ -88,15 +90,31 @@ jobs:
           git diff --exit-code -- Casks/inputmate.rb
           brew style Casks/inputmate.rb
 
+          tap_name=matrix-hq/inputmate
+          cask_name="$tap_name/inputmate"
+          tapped=false
           installed=false
           cleanup() {
             if [[ "$installed" == true ]]; then
-              brew uninstall --cask inputmate >/dev/null 2>&1 || true
+              brew uninstall --cask "$cask_name" >/dev/null 2>&1 || true
+            fi
+            if [[ "$tapped" == true ]]; then
+              brew untap "$tap_name" >/dev/null 2>&1 || true
             fi
           }
           trap cleanup EXIT
 
-          brew install --cask ./Casks/inputmate.rb
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            brew tap "$tap_name" "https://github.com/$GITHUB_REPOSITORY"
+          else
+            brew tap-new "$tap_name"
+            tap_dir="$(brew --repository "$tap_name")"
+            mkdir -p "$tap_dir/Casks"
+            cp Casks/inputmate.rb "$tap_dir/Casks/inputmate.rb"
+          fi
+          tapped=true
+
+          brew install --cask "$cask_name"
           installed=true
           test -d /Applications/InputMate.app
           installed_version="$(
@@ -106,8 +124,10 @@ jobs:
           )"
           test "$installed_version" = "$version"
 
-          brew uninstall --cask inputmate
+          brew uninstall --cask "$cask_name"
           installed=false
+          brew untap "$tap_name"
+          tapped=false
           trap - EXIT
 
       - name: Verify signed appcast generation
