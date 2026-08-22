@@ -50,29 +50,20 @@ jobs:
           hdiutil verify "$dmg" >/dev/null
 
           mount_dir="$(mktemp -d)"
-          device=""
+          mounted=false
           cleanup() {
-            if [[ -n "$device" ]]; then
-              hdiutil detach "$device" >/dev/null 2>&1 || true
+            if [[ "$mounted" == true ]]; then
+              hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
             fi
             rm -rf "$mount_dir" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
-          attach_output="$(
-            hdiutil attach "$dmg" \
-              -nobrowse \
-              -readonly \
-              -mountpoint "$mount_dir"
-          )"
-          device="$(
-            printf '%s\n' "$attach_output" |
-              awk -v mount="$mount_dir" '$NF == mount { print $1; exit }'
-          )"
-          if [[ -z "$device" ]]; then
-            echo "Unable to identify the mounted DMG device." >&2
-            exit 1
-          fi
+          hdiutil attach "$dmg" \
+            -nobrowse \
+            -readonly \
+            -mountpoint "$mount_dir" >/dev/null
+          mounted=true
 
           test -d "$mount_dir/InputMate.app"
           test -L "$mount_dir/Applications"
@@ -80,8 +71,8 @@ jobs:
           codesign --verify --deep --strict --verbose=2 \
             "$mount_dir/InputMate.app"
 
-          hdiutil detach "$device" >/dev/null
-          device=""
+          hdiutil detach "$mount_dir" >/dev/null
+          mounted=false
           rm -rf "$mount_dir"
           trap - EXIT
 
