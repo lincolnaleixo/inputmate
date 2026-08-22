@@ -21,7 +21,9 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 
 ## Install
 
-Download the latest `InputMate.app.zip` from GitHub Releases, unzip it, and move `InputMate.app` to `/Applications`.
+Download the latest `InputMate.dmg` from GitHub Releases, open it, and drag `InputMate.app` onto the included **Applications** shortcut.
+
+The release also contains `InputMate.app.zip`, which is the compact payload used by Sparkle for in-app updates. The DMG is the primary installer for people downloading InputMate manually.
 
 Public release builds are ad-hoc signed. macOS may require you to explicitly approve the first launch in **System Settings > Privacy & Security**. A future release process can add Developer ID signing and notarization without changing the source build.
 
@@ -66,6 +68,12 @@ open .build/app/InputMate.app
 
 The build script uses ad-hoc signing by default so it works without private Apple signing material. It embeds Sparkle, the GPL license, and the version recorded in `version.txt`.
 
+To create the same drag-to-Applications installer used by GitHub Releases:
+
+```sh
+zsh scripts/create-dmg.sh .build/app/InputMate.app dist/InputMate.dmg
+```
+
 To use your own stable Apple signing identity:
 
 ```sh
@@ -76,25 +84,26 @@ You can also provide `CODESIGN_REQUIREMENT` if you need to preserve a specific d
 
 ## Releases
 
-Release Please watches conventional commits on `main` and maintains a release pull request with the next semantic version and changelog. Merging that release pull request creates the version tag and GitHub Release, then invokes the macOS release workflow in the same Actions run.
+Release Please watches conventional commits on `main` and maintains a release pull request with the next semantic version and changelog. Merging that release pull request invokes the macOS release workflow.
 
 The release workflow:
 
 - runs the policy tests;
 - builds and validates `InputMate.app` on a GitHub-hosted macOS runner;
-- packages `InputMate.app.zip` and its SHA-256 checksum;
-- signs the update with the Sparkle Ed25519 private key;
-- generates a signed `appcast.xml`;
-- uploads all three files to GitHub Releases.
+- creates `InputMate.dmg` with an Applications shortcut for manual installation;
+- creates `InputMate.app.zip` as the Sparkle update payload;
+- creates SHA-256 checksums for both packages;
+- generates and signs `appcast.xml` when the matching Sparkle private key is available;
+- uploads the installer, updater payload, checksums, and appcast to GitHub Releases.
 
 A manually pushed stable tag such as `v0.1.0` also invokes the same release workflow.
 
-Maintainers must configure the repository Actions secret `SPARKLE_PRIVATE_KEY` with the Base64-encoded private seed that matches the `SUPublicEDKey` embedded in `App/Info.plist`. Never commit that value.
+DMG and ZIP packaging does not require private signing material. Publishing a new version through Sparkle requires the private Ed25519 seed that matches the `SUPublicEDKey` embedded in `App/Info.plist`. When that key is not available to the runner, the workflow preserves the last valid signed appcast rather than replacing it with an unsigned feed.
 
 ## Security
 
 - API credentials belong in macOS Keychain.
-- The Sparkle private update key belongs only in GitHub Actions secrets and an offline backup.
+- The Sparkle private update key must remain outside the public repository and public workflow logs.
 - Signing identities and certificates are local configuration and must not be committed.
 - Environment files, private keys, certificates, provisioning profiles, and common local secret files are ignored by Git.
 - Selected text is not written to application logs.
