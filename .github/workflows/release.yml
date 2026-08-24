@@ -382,7 +382,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
         shell: bash
         run: |
-          tap_name=matrix-hq/inputmate
+          tap_name=lincolnaleixo/inputmate
           cask_name="$tap_name/inputmate"
           app_dir="$RUNNER_TEMP/inputmate-applications"
           tapped=false

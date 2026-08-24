@@ -39,7 +39,7 @@ jobs:
           otool -L "$app/Contents/MacOS/InputMate" |
             grep -F '@rpath/Sparkle.framework/'
           test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" \
-            = "https://github.com/matrix-hq/inputmate/releases/latest/download/appcast.xml"
+            = "https://github.com/lincolnaleixo/inputmate/releases/latest/download/appcast.xml"
           test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")"
 
       - name: Verify DMG installer
@@ -90,7 +90,7 @@ jobs:
           git diff --exit-code -- Casks/inputmate.rb
           brew style Casks/inputmate.rb
 
-          tap_name=matrix-hq/inputmate
+          tap_name=lincolnaleixo/inputmate
           cask_name="$tap_name/inputmate"
           tapped=false
           installed=false
