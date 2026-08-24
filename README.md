@@ -40,7 +40,7 @@ brew upgrade --cask matrix-hq/inputmate/inputmate
 brew uninstall --cask matrix-hq/inputmate/inputmate
 ```
 
-InputMate is currently distributed through this upstream tap rather than the official `homebrew/cask` catalog because release builds are ad-hoc signed and are not yet notarized by Apple.
+InputMate is currently distributed through this upstream tap rather than the official `homebrew/cask` catalog. Official release artifacts are signed with the InputMate Developer ID identity and notarized by Apple before publication.
 
 ### Manual installation
 
@@ -48,7 +48,7 @@ Download the latest `InputMate.dmg` from GitHub Releases, open it, and drag `Inp
 
 The release also contains `InputMate.app.zip`, which is the compact payload used by Sparkle for in-app updates. The DMG is the primary installer for people downloading InputMate manually.
 
-Public release builds are ad-hoc signed. macOS may require you to explicitly approve the first launch in **System Settings > Privacy & Security**. A future release process can add Developer ID signing and notarization without changing the source build.
+Official release builds are signed with Developer ID, hardened, notarized, and stapled. CI and local builds remain ad-hoc by default, so artifacts produced outside the official release workflow may still require explicit approval in **System Settings > Privacy & Security**.
 
 After launching InputMate, grant Accessibility access when prompted if you enable mouse reversal or keyboard shortcuts.
 
@@ -103,7 +103,7 @@ To use your own stable Apple signing identity:
 CODESIGN_IDENTITY="Apple Development: Your Name (TEAMID)" zsh scripts/build-app.sh
 ```
 
-You can also provide `CODESIGN_REQUIREMENT` if you need to preserve a specific designated requirement across local rebuilds.
+You can also provide `CODESIGN_REQUIREMENT` if you need to preserve a specific designated requirement across local rebuilds. Official releases use the fixed InputMate bundle requirement for Team ID `4F3CBH5L9D`.
 
 ## Releases
 
@@ -112,23 +112,27 @@ Release Please watches conventional commits on `main` and maintains a release pu
 The release workflow:
 
 - runs the policy tests;
-- builds and validates `InputMate.app` on a GitHub-hosted macOS runner;
+- builds and validates `InputMate.app` on the trusted Apple Silicon `runner-macos-01` self-hosted runner;
+- signs the app and embedded Sparkle helpers with `Developer ID Application: BUYFROMUS LLC (4F3CBH5L9D)`;
+- notarizes and staples both the app and the DMG before creating final release archives;
 - creates `InputMate.dmg` with an Applications shortcut for manual installation;
 - creates `InputMate.app.zip` as the Sparkle update payload;
 - creates SHA-256 checksums for both packages;
-- generates and signs `appcast.xml` when the matching Sparkle private key is available;
+- requires the Sparkle private seed matching `SUPublicEDKey` and generates a signed `appcast.xml`;
 - uploads the installer, updater payload, checksums, and appcast to GitHub Releases;
-- refreshes `Casks/inputmate.rb` with the released version and exact DMG checksum.
+- reads the published files back and verifies their checksums and stapled signatures;
+- refreshes `Casks/inputmate.rb` and the signed `release/appcast.xml` snapshot.
 
 A manually pushed stable tag such as `v0.1.0` also invokes the same release workflow.
 
-DMG and ZIP packaging does not require private signing material. Publishing a new version through Sparkle requires the private Ed25519 seed that matches the `SUPublicEDKey` embedded in `App/Info.plist`. When that key is not available to the runner, the workflow preserves the last valid signed appcast rather than replacing it with an unsigned feed.
+`workflow_dispatch` supports a verify-only run that performs the build and Apple notarization but does not publish a GitHub Release. Official releases fail closed when the matching Sparkle seed is unavailable instead of preserving an appcast for a different version.
 
 ## Security
 
 - API credentials belong in macOS Keychain.
 - The Sparkle private update key must remain outside the public repository and public workflow logs.
 - Signing identities and certificates are local configuration and must not be committed.
+- The release workflow reads `MAC_BUILD_KEYCHAIN_PASSWORD` and `SPARKLE_PRIVATE_KEY` only from GitHub Actions secrets. Their canonical broker references are `robots_mac_server.default.default.build_keychain_password` and `inputmate.default.default.sparkle_private_key`.
 - Environment files, private keys, certificates, provisioning profiles, and common local secret files are ignored by Git.
 - Selected text is not written to application logs.
 

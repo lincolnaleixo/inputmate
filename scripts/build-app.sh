@@ -7,6 +7,8 @@ package_root="${script_dir:h}"
 configuration="${CONFIGURATION:-release}"
 app_path="${1:-${package_root}/.build/app/InputMate.app}"
 bundle_id="${INPUTMATE_BUNDLE_ID:-com.robot.InputMate}"
+team_id="${INPUTMATE_TEAM_ID:-4F3CBH5L9D}"
+distribution_identity="${INPUTMATE_DISTRIBUTION_IDENTITY:-Developer ID Application: BUYFROMUS LLC (${team_id})}"
 
 # Public builds default to ad-hoc signing so the project can build on any Mac
 # without requiring a private certificate. Developers who need a stable macOS
@@ -17,7 +19,12 @@ bundle_id="${INPUTMATE_BUNDLE_ID:-com.robot.InputMate}"
 # CODESIGN_REQUIREMENT is optional and is useful when preserving Accessibility
 # grants across local rebuilds with a stable team identity.
 identity="${CODESIGN_IDENTITY:--}"
-requirement="${CODESIGN_REQUIREMENT:-}"
+default_requirement="identifier \"$bundle_id\" and anchor apple generic and certificate leaf[subject.OU] = \"$team_id\""
+if [[ "$identity" == "-" ]]; then
+  requirement="${CODESIGN_REQUIREMENT:-}"
+else
+  requirement="${CODESIGN_REQUIREMENT:-$default_requirement}"
+fi
 
 fail() {
   print -u2 -- "build-app.sh: $*"
@@ -46,6 +53,17 @@ default_build_version="$((version_parts[1] + 1)).${version_parts[2]}.${version_p
 build_version="${INPUTMATE_BUILD_VERSION:-$default_build_version}"
 [[ "$build_version" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]] ||
   fail "invalid build version: $build_version"
+
+if [[ "${INPUTMATE_REQUIRE_DISTRIBUTION:-0}" == 1 ]]; then
+  [[ "$identity" == "$distribution_identity" ]] ||
+    fail "distribution build requires identity: $distribution_identity"
+fi
+
+if [[ "$identity" != "-" ]]; then
+  /usr/bin/security find-identity -v -p codesigning |
+    /usr/bin/grep -Fq "\"$identity\"" ||
+    fail "signing identity is not available: $identity"
+fi
 
 cd "$package_root"
 swift build --configuration "$configuration" --product InputMate
@@ -84,6 +102,52 @@ cp "$package_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
   /usr/bin/grep -Fq '@rpath/Sparkle.framework/' ||
   fail "InputMate is not linked to the embedded Sparkle framework"
 
+sign_code() {
+  local target="$1"
+  local -a arguments
+
+  arguments=(
+    --force
+    --options runtime
+    --timestamp
+    --sign "$identity"
+  )
+  if [[ "$target" != "$app_path" ]]; then
+    arguments+=(--preserve-metadata=entitlements)
+  fi
+  /usr/bin/codesign "${arguments[@]}" "$target"
+}
+
+sign_sparkle_components() {
+  local framework="$1"
+  local version_dir="$framework/Versions/B"
+  local path
+  local -a bundles
+
+  [[ -d "$version_dir" ]] ||
+    version_dir="$framework/Versions/Current"
+
+  # Sparkle contains nested apps and XPC services. Sign every Mach-O leaf
+  # first, then each containing bundle, and the framework last. This keeps
+  # the nested signatures valid without relying on codesign --deep.
+  while IFS= read -r -d '' path; do
+    if /usr/bin/file -b "$path" | /usr/bin/grep -Eq 'Mach-O|shared library'; then
+      sign_code "$path"
+    fi
+  done < <(/usr/bin/find "$version_dir" -type f -print0)
+
+  bundles=("${(@f)$(/usr/bin/find "$version_dir" -type d \( -name '*.app' -o -name '*.xpc' \) -print | /usr/bin/awk '{ print length, $0 }' | /usr/bin/sort -rn | /usr/bin/cut -d' ' -f2-)}")
+  for path in "${bundles[@]}"; do
+    [[ -n "$path" ]] && sign_code "$path"
+  done
+
+  sign_code "$framework"
+}
+
+if [[ "$identity" != "-" ]]; then
+  sign_sparkle_components "$app_path/Contents/Frameworks/Sparkle.framework"
+fi
+
 codesign_arguments=(
   --force
   --options runtime
@@ -92,6 +156,9 @@ codesign_arguments=(
 )
 if [[ -n "$requirement" ]]; then
   codesign_arguments+=(--requirements "$requirement")
+fi
+if [[ "$identity" != "-" ]]; then
+  codesign_arguments+=(--timestamp)
 fi
 
 /usr/bin/codesign "${codesign_arguments[@]}" "$app_path"

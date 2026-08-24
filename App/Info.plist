@@ -31,7 +31,7 @@
     <key>SUFeedURL</key>
     <string>https://github.com/matrix-hq/inputmate/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>
-    <string>Ajk5wlX31EhoWppw92zRhPhNjEGzwAPYbHWTVDssxAw=</string>
+    <string>QLkK3C82kjdaXyur5mQALvmRyycsY/X0NuHpuu7ds50=</string>
     <key>SUAutomaticallyUpdate</key>
     <true/>
     <key>SUScheduledCheckInterval</key>

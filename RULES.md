@@ -39,4 +39,8 @@ For input, Accessibility, or UI behavior changes, also exercise the built app on
 
 ## Releases
 
-Tags matching `v*` trigger the GitHub Actions release workflow. Public release artifacts are ad-hoc signed unless a future release process explicitly adds Developer ID signing and notarization through repository secrets.
+Tags matching `v*` trigger the GitHub Actions release workflow. Pull request CI remains ad-hoc on a GitHub-hosted runner, while official releases run on `runner-macos-01` and use the existing Developer ID certificate, trusted keychain, and notarization profile on `robots-mac-server`.
+
+Official releases must use the fixed bundle requirement for `com.robot.InputMate` and Team ID `4F3CBH5L9D`, notarize and staple the app and DMG, regenerate checksums after stapling, and generate a signed Sparkle appcast from the final ZIP. The Sparkle private seed and keychain password are secrets and must never enter this repository.
+
+The canonical broker references are `inputmate.default.default.sparkle_private_key` for Sparkle and `robots_mac_server.default.default.build_keychain_password` for the build keychain. GitHub repository secrets are copies and must be refreshed after either canonical value rotates.
