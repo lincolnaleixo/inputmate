@@ -211,11 +211,19 @@ jobs:
             find "$GITHUB_WORKSPACE/.build/artifacts" \
               -type f -name generate_appcast -print -quit
           )"
+          SIGN_UPDATE="$(
+            find "$GITHUB_WORKSPACE/.build/artifacts" \
+              -type f -name sign_update -print -quit
+          )"
           [[ -n "$GENERATE_APPCAST" ]] || {
             echo 'Sparkle generate_appcast tool was not found.' >&2
             exit 1
           }
-          chmod +x "$GENERATE_APPCAST"
+          [[ -n "$SIGN_UPDATE" ]] || {
+            echo 'Sparkle sign_update tool was not found.' >&2
+            exit 1
+          }
+          chmod +x "$GENERATE_APPCAST" "$SIGN_UPDATE"
 
           mkdir -p dist/appcast-source
           cp dist/InputMate.app.zip dist/appcast-source/InputMate.app.zip
@@ -235,6 +243,22 @@ jobs:
 
           grep -Fq 'sparkle:edSignature=' dist/appcast.xml
           grep -Fq "$RELEASE_TAG/InputMate.app.zip" dist/appcast.xml
+          ed_signature="$(
+            sed -n \
+              's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' \
+              dist/appcast.xml |
+              head -1
+          )"
+          [[ "$ed_signature" =~ ^[A-Za-z0-9+/]{86}==$ ]] || {
+            echo 'Generated Sparkle signature has an invalid format.' >&2
+            exit 1
+          }
+          printf '%s' "$SPARKLE_PRIVATE_KEY" |
+            "$SIGN_UPDATE" \
+              --ed-key-file - \
+              --verify \
+              dist/InputMate.app.zip \
+              "$ed_signature"
 
       - name: Render Homebrew cask
         shell: bash
