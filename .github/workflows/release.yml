@@ -7,26 +7,20 @@ on:
         description: Semantic-version tag created by Release Please
         required: true
         type: string
-      publish:
-        description: Publish the verified assets to the GitHub Release
-        required: false
-        default: true
-        type: boolean
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing semantic-version tag or blank for version.txt
+        description: Existing semantic-version tag or blank for version.txt (verify only)
         required: false
         default: ''
         type: string
-      publish:
-        description: Publish the verified assets to the GitHub Release
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: write
+
+concurrency:
+  group: inputmate-release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -44,7 +38,6 @@ jobs:
         id: release
         env:
           CALLED_TAG: ${{ inputs.tag }}
-          PUBLISH_INPUT: ${{ inputs.publish }}
         shell: bash
         run: |
           if [[ -n "$CALLED_TAG" ]]; then
@@ -61,10 +54,8 @@ jobs:
             exit 1
           fi
 
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ||
-                "$GITHUB_EVENT_NAME" == workflow_call ]]; then
-            PUBLISH="${PUBLISH_INPUT:-false}"
-          else
+          PUBLISH=false
+          if [[ "$GITHUB_EVENT_NAME" == workflow_call ]]; then
             PUBLISH=true
           fi
 
@@ -72,6 +63,18 @@ jobs:
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+
+          {
+            echo '## InputMate release'
+            echo
+            echo "- Version: ${TAG#v}"
+            echo "- Source: $(git rev-parse HEAD)"
+            if [[ "$PUBLISH" == true ]]; then
+              echo '- Mode: publish signed and notarized release assets'
+            else
+              echo '- Mode: verify only, no GitHub Release will be changed'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show Swift version
         run: swift --version

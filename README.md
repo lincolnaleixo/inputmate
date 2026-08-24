@@ -107,7 +107,9 @@ You can also provide `CODESIGN_REQUIREMENT` if you need to preserve a specific d
 
 ## Releases
 
-Release Please watches conventional commits on `main` and maintains a release pull request with the next semantic version and changelog. Merging that release pull request invokes the macOS release workflow.
+InputMate follows Semantic Versioning and uses conventional commits. Release Please watches `main` and maintains a release pull request containing the next version and changelog. Merging that release pull request is the only action that publishes a new version.
+
+See [`RELEASING.md`](RELEASING.md) for the version rules, commit examples, release checklist, and recovery procedure. Contributors should also read [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 The release workflow:
 
@@ -125,7 +127,7 @@ The release workflow:
 
 When Release Please creates the stable tag and GitHub Release, it invokes the same release workflow directly so the signed assets are attached exactly once.
 
-`workflow_dispatch` supports a verify-only run that performs the build and Apple notarization but does not publish a GitHub Release. Official releases fail closed when the matching Sparkle seed is unavailable instead of preserving an appcast for a different version.
+Manual `workflow_dispatch` runs are always verify-only. They perform the complete build and Apple notarization but cannot publish or modify a GitHub Release. Official releases fail closed when the matching Sparkle seed is unavailable instead of preserving an appcast for a different version.
 
 ## Security
 
