@@ -91,7 +91,7 @@ jobs:
             --keychain-profile "$INPUTMATE_NOTARY_PROFILE" >/dev/null
 
       - name: Run policy tests
-        run: swift run InputMateTests
+        run: swift run --disable-keychain InputMateTests
 
       - name: Build and sign app bundle
         env:

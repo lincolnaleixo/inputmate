@@ -66,8 +66,8 @@ if [[ "$identity" != "-" ]]; then
 fi
 
 cd "$package_root"
-swift build --configuration "$configuration" --product InputMate
-binary_dir="$(swift build --configuration "$configuration" --show-bin-path)"
+swift build --disable-keychain --configuration "$configuration" --product InputMate
+binary_dir="$(swift build --disable-keychain --configuration "$configuration" --show-bin-path)"
 sparkle_framework="$(
   find "$package_root/.build/artifacts" \
     -type d -name Sparkle.framework -print -quit 2>/dev/null
