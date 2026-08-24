@@ -2,11 +2,11 @@ cask "inputmate" do
   version "0.2.0"
   sha256 "4531bc64f9e3e2957e2364810a92bb562f9cb64d922a1c87083ce5aad0dfc071"
 
-  url "https://github.com/matrix-hq/inputmate/releases/download/v#{version}/InputMate.dmg",
-      verified: "github.com/matrix-hq/inputmate/"
+  url "https://github.com/lincolnaleixo/inputmate/releases/download/v#{version}/InputMate.dmg",
+      verified: "github.com/lincolnaleixo/inputmate/"
   name "InputMate"
   desc "Menu bar utility for mouse input, shortcuts, and text transformations"
-  homepage "https://github.com/matrix-hq/inputmate"
+  homepage "https://github.com/lincolnaleixo/inputmate"
 
   livecheck do
     url :url

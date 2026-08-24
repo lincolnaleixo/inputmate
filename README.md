@@ -26,8 +26,8 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 The InputMate repository also acts as its upstream Homebrew tap:
 
 ```sh
-brew tap matrix-hq/inputmate https://github.com/matrix-hq/inputmate
-brew install --cask matrix-hq/inputmate/inputmate
+brew tap lincolnaleixo/inputmate https://github.com/lincolnaleixo/inputmate
+brew install --cask lincolnaleixo/inputmate/inputmate
 ```
 
 The fully qualified cask name lets Homebrew trust only InputMate instead of the entire third-party tap. The explicit repository URL is required because this application repository does not use a separate `homebrew-` repository.
@@ -36,8 +36,8 @@ To update or uninstall through Homebrew:
 
 ```sh
 brew update
-brew upgrade --cask matrix-hq/inputmate/inputmate
-brew uninstall --cask matrix-hq/inputmate/inputmate
+brew upgrade --cask lincolnaleixo/inputmate/inputmate
+brew uninstall --cask lincolnaleixo/inputmate/inputmate
 ```
 
 InputMate is currently distributed through this upstream tap rather than the official `homebrew/cask` catalog. Official release artifacts are signed with the InputMate Developer ID identity and notarized by Apple before publication.
@@ -114,7 +114,7 @@ See [`RELEASING.md`](RELEASING.md) for the version rules, commit examples, relea
 The release workflow:
 
 - runs the policy tests;
-- builds and validates `InputMate.app` on the trusted Apple Silicon `runner-macos-01` self-hosted runner;
+- builds and validates `InputMate.app` on the trusted Apple Silicon `runner-inputmate-macos-01` repository runner;
 - signs the app and embedded Sparkle helpers with `Developer ID Application: BUYFROMUS LLC (4F3CBH5L9D)`;
 - notarizes and staples both the app and the DMG before creating final release archives;
 - creates `InputMate.dmg` with an Applications shortcut for manual installation;

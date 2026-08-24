@@ -29,7 +29,7 @@
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>SUFeedURL</key>
-    <string>https://github.com/matrix-hq/inputmate/releases/latest/download/appcast.xml</string>
+    <string>https://github.com/lincolnaleixo/inputmate/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>tzJpyj94svmWGe/U0mCsfKASS1dn2s9oOgDAnTNOC3M=</string>
     <key>SUAutomaticallyUpdate</key>

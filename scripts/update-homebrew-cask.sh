@@ -23,11 +23,11 @@ cask "inputmate" do
   version "$version"
   sha256 "$sha256"
 
-  url "https://github.com/matrix-hq/inputmate/releases/download/v#{version}/InputMate.dmg",
-      verified: "github.com/matrix-hq/inputmate/"
+  url "https://github.com/lincolnaleixo/inputmate/releases/download/v#{version}/InputMate.dmg",
+      verified: "github.com/lincolnaleixo/inputmate/"
   name "InputMate"
   desc "Menu bar utility for mouse input, shortcuts, and text transformations"
-  homepage "https://github.com/matrix-hq/inputmate"
+  homepage "https://github.com/lincolnaleixo/inputmate"
 
   livecheck do
     url :url

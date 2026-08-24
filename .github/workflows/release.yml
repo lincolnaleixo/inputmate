@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: [self-hosted, matrix, macOS, ARM64]
+    runs-on: [self-hosted, inputmate, macOS, ARM64]
     timeout-minutes: 75
 
     steps:

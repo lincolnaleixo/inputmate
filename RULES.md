@@ -39,7 +39,7 @@ For input, Accessibility, or UI behavior changes, also exercise the built app on
 
 ## Releases
 
-Release Please invokes the GitHub Actions release workflow after it creates the stable tag and GitHub Release. Pull request CI remains ad-hoc on a GitHub-hosted runner, while official releases run on `runner-macos-01` and use the existing Developer ID certificate, trusted keychain, and notarization profile on `robots-mac-server`.
+Release Please invokes the GitHub Actions release workflow after it creates the stable tag and GitHub Release. Pull request CI remains ad-hoc on a GitHub-hosted runner, while official releases run on the repository-level `runner-inputmate-macos-01` runner and use the existing Developer ID certificate, trusted keychain, and notarization profile on `robots-mac-server`.
 
 Merging the Release Please pull request is the only publication gate. A manual release workflow run is always verify-only and must never create, replace, or modify a GitHub Release. Follow `RELEASING.md`; do not manually edit generated version or changelog files during normal development.
 
