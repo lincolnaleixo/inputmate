@@ -123,7 +123,7 @@ The release workflow:
 - reads the published files back and verifies their checksums and stapled signatures;
 - refreshes `Casks/inputmate.rb` and the signed `release/appcast.xml` snapshot.
 
-A manually pushed stable tag such as `v0.1.0` also invokes the same release workflow.
+When Release Please creates the stable tag and GitHub Release, it invokes the same release workflow directly so the signed assets are attached exactly once.
 
 `workflow_dispatch` supports a verify-only run that performs the build and Apple notarization but does not publish a GitHub Release. Official releases fail closed when the matching Sparkle seed is unavailable instead of preserving an appcast for a different version.
 

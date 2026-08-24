@@ -39,7 +39,7 @@ For input, Accessibility, or UI behavior changes, also exercise the built app on
 
 ## Releases
 
-Tags matching `v*` trigger the GitHub Actions release workflow. Pull request CI remains ad-hoc on a GitHub-hosted runner, while official releases run on `runner-macos-01` and use the existing Developer ID certificate, trusted keychain, and notarization profile on `robots-mac-server`.
+Release Please invokes the GitHub Actions release workflow after it creates the stable tag and GitHub Release. Pull request CI remains ad-hoc on a GitHub-hosted runner, while official releases run on `runner-macos-01` and use the existing Developer ID certificate, trusted keychain, and notarization profile on `robots-mac-server`.
 
 Official releases must use the fixed bundle requirement for `com.robot.InputMate` and Team ID `4F3CBH5L9D`, notarize and staple the app and DMG, regenerate checksums after stapling, and generate a signed Sparkle appcast from the final ZIP. The Sparkle private seed and keychain password are secrets and must never enter this repository.
 

@@ -1,15 +1,17 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
-    paths:
-      - version.txt
-      - CHANGELOG.md
-      - .release-please-manifest.json
+  workflow_call:
+    inputs:
+      tag:
+        description: Semantic-version tag created by Release Please
+        required: true
+        type: string
+      publish:
+        description: Publish the verified assets to the GitHub Release
+        required: false
+        default: true
+        type: boolean
   workflow_dispatch:
     inputs:
       tag:
@@ -59,7 +61,8 @@ jobs:
             exit 1
           fi
 
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ||
+                "$GITHUB_EVENT_NAME" == workflow_call ]]; then
             PUBLISH="${PUBLISH_INPUT:-false}"
           else
             PUBLISH=true
