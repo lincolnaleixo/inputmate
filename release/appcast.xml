@@ -1,20 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
-  <channel>
-    <title>InputMate</title>
-    <item>
-      <title>0.1.1</title>
-      <pubDate>Sat, 22 Aug 2026 19:48:41 +0000</pubDate>
-      <sparkle:link>https://github.com/matrix-hq/inputmate</sparkle:link>
-      <sparkle:fullReleaseNotesLink>https://github.com/matrix-hq/inputmate/releases/tag/v0.1.1</sparkle:fullReleaseNotesLink>
-      <sparkle:version>1.1.1</sparkle:version>
-      <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/matrix-hq/inputmate/releases/download/v0.1.1/InputMate.app.zip" length="1444873" type="application/octet-stream" sparkle:edSignature="UFUjBwrJSOBfIvZ7yT3uGBKIwnzJSj07qJ9UeqzPbBPTTJxMYACzzgvg3obdgre5I10nFzgDFQJQycKDikP3Bg==" />
-    </item>
-  </channel>
-</rss>
-<!-- sparkle-signatures:
-edSignature: gy+rp9eFkYyHb3wte8Yov/t5G/xUGsibGJb9OMc+dVkVcys7G9/lARXQm3SBY0Io+lorVECdsql/9lSDBG5vAQ==
-length: 951
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>InputMate</title>
+        <item>
+            <title>0.2.0</title>
+            <pubDate>Mon, 24 Aug 2026 10:55:16 +0200</pubDate>
+            <link>https://github.com/matrix-hq/inputmate</link>
+            <sparkle:fullReleaseNotesLink>https://github.com/matrix-hq/inputmate/releases/tag/v0.2.0</sparkle:fullReleaseNotesLink>
+            <sparkle:version>1.2.0</sparkle:version>
+            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/matrix-hq/inputmate/releases/download/v0.2.0/InputMate.app.zip" length="1492699" type="application/octet-stream" sparkle:edSignature="5IAHHmULPhYoB5vtyysWLdsNvFVzA1ZPXciXCyCXgo/z5r3HMyu5SyvH9QBB8RKIvkvuGuSJjfpn38HGvjgABw=="></enclosure>
+        </item>
+    </channel>
+</rss><!-- sparkle-signatures:
+edSignature: w8pALF4sMWVtppvEN35sadyjpFbWJasSgXgk66016nlp1Tdvy2hb8lcw45Togq/cFlfmwbzkMfuR4FJTwBpOCQ==
+length: 1322
 -->
