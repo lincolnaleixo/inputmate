@@ -35,6 +35,7 @@ cask "inputmate" do
   end
 
   auto_updates true
+  depends_on arch: :arm64
   depends_on macos: :ventura
 
   app "InputMate.app"
@@ -46,9 +47,6 @@ cask "inputmate" do
   ]
 
   caveats <<~EOS
-    InputMate is ad-hoc signed and is not notarized by Apple. On first launch,
-    macOS may require approval in System Settings > Privacy & Security.
-
     Because InputMate uses Accessibility permissions, macOS may ask you to
     re-enable access after an update.
   EOS
