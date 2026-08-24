@@ -155,7 +155,7 @@ codesign_arguments=(
   --sign "$identity"
 )
 if [[ -n "$requirement" ]]; then
-  codesign_arguments+=(--requirements="$requirement")
+  codesign_arguments+=(--requirements "=$requirement")
 fi
 if [[ "$identity" != "-" ]]; then
   codesign_arguments+=(--timestamp)
