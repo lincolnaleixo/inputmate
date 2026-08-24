@@ -73,6 +73,12 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
+      - name: Add Homebrew to PATH
+        shell: bash
+        run: |
+          test -x /opt/homebrew/bin/brew
+          echo /opt/homebrew/bin >> "$GITHUB_PATH"
+
       - name: Unlock signing keychain
         env:
           MAC_BUILD_KEYCHAIN_PASSWORD: ${{ secrets.MAC_BUILD_KEYCHAIN_PASSWORD }}
