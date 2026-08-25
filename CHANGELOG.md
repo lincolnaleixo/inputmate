@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/lincolnaleixo/inputmate/compare/v0.2.1...v0.2.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **release:** restore explicit asset publication ([38ac4bb](https://github.com/lincolnaleixo/inputmate/commit/38ac4bbc2fdb5aa5a07bd2d1715c5519e7182256))
+
 ## [0.2.1](https://github.com/lincolnaleixo/inputmate/compare/v0.2.0...v0.2.1) (2026-08-25)
 
 
