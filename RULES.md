@@ -4,8 +4,8 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 
 ## Architecture
 
-- Swift Package Manager project targeting macOS 13 or later.
-- `App/` contains bundle resources such as `Info.plist`.
+- Swift Package Manager project targeting Apple silicon and macOS 13 or later.
+- `App/` contains bundle resources such as `Info.plist` and signing entitlements.
 - `Sources/InputMate/` contains the macOS application.
 - `Sources/InputMateCore/` contains policies that can be tested without AppKit.
 - `Tests/InputMatePolicyTests/` contains the executable policy test suite.
@@ -13,10 +13,11 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 
 ## Security and privacy
 
-- Never commit API keys, passwords, signing certificates, provisioning profiles, private hostnames, or machine-specific credentials.
+- Never commit API keys, passwords, signing certificates, provisioning profiles, private hostnames, machine-specific credentials, or release-runner details.
 - Store the Cerebras API key only in macOS Keychain.
 - Keep personal shortcuts, application paths, and local deployment configuration in user preferences rather than factory defaults.
 - Do not log selected user text or API credentials.
+- Keep debug-only entitlements separate from release entitlements. Official releases must keep Library Validation enabled.
 
 ## Development
 
@@ -39,10 +40,8 @@ For input, Accessibility, or UI behavior changes, also exercise the built app on
 
 ## Releases
 
-Release Please invokes the GitHub Actions release workflow after it creates the stable tag and GitHub Release. Pull request CI remains ad-hoc on a GitHub-hosted runner, while official releases run on the repository-level `runner-inputmate-macos-01` runner and use the existing Developer ID certificate, trusted keychain, and notarization profile on `robots-mac-server`.
+Release Please invokes the GitHub Actions release workflow after it creates the stable tag and GitHub Release. Pull request CI remains ad-hoc on a GitHub-hosted runner, while official releases run on a dedicated trusted macOS runner with access to the Developer ID identity and Apple notarization credentials.
 
 Merging the Release Please pull request is the only publication gate. A manual release workflow run is always verify-only and must never create, replace, or modify a GitHub Release. Follow `RELEASING.md`; do not manually edit generated version or changelog files during normal development.
 
-Official releases must use the fixed bundle requirement for `com.robot.InputMate` and Team ID `4F3CBH5L9D`, notarize and staple the app and DMG, regenerate checksums after stapling, and generate a signed Sparkle appcast from the final ZIP. The Sparkle private seed and keychain password are secrets and must never enter this repository.
-
-The canonical broker references are `inputmate.default.default.sparkle_private_key` for Sparkle and `robots_mac_server.default.default.build_keychain_password` for the build keychain. GitHub repository secrets are copies and must be refreshed after either canonical value rotates.
+Official releases must use the fixed InputMate bundle identifier and stable designated requirement, keep Library Validation enabled, notarize and staple the app and DMG, assess both with Gatekeeper, regenerate checksums after stapling, and generate a signed Sparkle appcast from the final ZIP. The Sparkle private seed, signing keychain password, certificate, and notarization credentials are secrets and must never enter this repository.

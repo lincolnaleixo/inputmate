@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Check out release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag || github.sha }}
@@ -131,9 +131,15 @@ jobs:
           requirement="$(codesign -dr - "$app" 2>&1 | sed -n 's/^designated => //p')"
           test "$requirement" = "$CODESIGN_REQUIREMENT"
 
-          if codesign -d --entitlements :- "$app" 2>&1 |
-            grep -Fq 'get-task-allow'; then
+          signed_entitlements="$(codesign -d --entitlements :- "$app" 2>&1 || true)"
+          if grep -Fq 'get-task-allow' <<< "$signed_entitlements"; then
             echo 'get-task-allow must not be present in a distribution build' >&2
+            exit 1
+          fi
+          if grep -Fq \
+            'com.apple.security.cs.disable-library-validation' \
+            <<< "$signed_entitlements"; then
+            echo 'Library Validation must remain enabled in a distribution build' >&2
             exit 1
           fi
 
@@ -278,7 +284,7 @@ jobs:
 
       - name: Upload verify-only artifacts
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: inputmate-release-${{ steps.release.outputs.tag }}
           path: |
@@ -351,11 +357,26 @@ jobs:
           )
 
           unzip -q "$readback/InputMate.app.zip" -d "$readback/unpacked"
-          codesign --verify --deep --strict --verbose=2 \
-            "$readback/unpacked/InputMate.app"
-          xcrun stapler validate "$readback/unpacked/InputMate.app"
-          spctl --assess --type execute --verbose=2 \
-            "$readback/unpacked/InputMate.app"
+          published_app="$readback/unpacked/InputMate.app"
+          codesign --verify --deep --strict --verbose=2 "$published_app"
+          xcrun stapler validate "$published_app"
+          spctl --assess --type execute --verbose=2 "$published_app"
+          published_entitlements="$(
+            codesign -d --entitlements :- "$published_app" 2>&1 || true
+          )"
+          if grep -Fq \
+            'com.apple.security.cs.disable-library-validation' \
+            <<< "$published_entitlements"; then
+            echo 'Published app unexpectedly disables Library Validation' >&2
+            exit 1
+          fi
+
+          xcrun stapler validate "$readback/InputMate.dmg"
+          spctl --assess \
+            --type open \
+            --context context:primary-signature \
+            --verbose=2 \
+            "$readback/InputMate.dmg"
 
           mount_dir="$(mktemp -d "$RUNNER_TEMP/inputmate-dmg-mount.XXXXXX")"
           mounted=false
@@ -379,6 +400,7 @@ jobs:
         if: ${{ steps.release.outputs.publish == 'true' }}
         env:
           HOMEBREW_NO_ASK: '1'
+          HOMEBREW_NO_AUTO_UPDATE: '1'
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
         shell: bash
         run: |
@@ -460,7 +482,7 @@ jobs:
 
       - name: Upload release diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: inputmate-release-diagnostics
           path: |

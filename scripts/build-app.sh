@@ -9,6 +9,8 @@ app_path="${1:-${package_root}/.build/app/InputMate.app}"
 bundle_id="${INPUTMATE_BUNDLE_ID:-com.robot.InputMate}"
 team_id="${INPUTMATE_TEAM_ID:-4F3CBH5L9D}"
 distribution_identity="${INPUTMATE_DISTRIBUTION_IDENTITY:-Developer ID Application: BUYFROMUS LLC (${team_id})}"
+debug_entitlements="$package_root/App/InputMate.debug.entitlements"
+release_entitlements="$package_root/App/InputMate.release.entitlements"
 
 # Public builds default to ad-hoc signing so the project can build on any Mac
 # without requiring a private certificate. Developers who need a stable macOS
@@ -30,6 +32,15 @@ fail() {
   print -u2 -- "build-app.sh: $*"
   exit 1
 }
+
+if [[ -n "${INPUTMATE_ENTITLEMENTS:-}" ]]; then
+  entitlements="${INPUTMATE_ENTITLEMENTS:A}"
+elif [[ "$identity" == "-" ]]; then
+  entitlements="$debug_entitlements"
+else
+  entitlements="$release_entitlements"
+fi
+[[ -f "$entitlements" ]] || fail "entitlements file not found: $entitlements"
 
 source_version="$(tr -d '[:space:]' < "$package_root/version.txt")"
 version="${INPUTMATE_VERSION:-$source_version}"
@@ -57,6 +68,8 @@ build_version="${INPUTMATE_BUILD_VERSION:-$default_build_version}"
 if [[ "${INPUTMATE_REQUIRE_DISTRIBUTION:-0}" == 1 ]]; then
   [[ "$identity" == "$distribution_identity" ]] ||
     fail "distribution build requires identity: $distribution_identity"
+  [[ "$entitlements" == "$release_entitlements" ]] ||
+    fail "distribution build requires release entitlements: $release_entitlements"
 fi
 
 if [[ "$identity" != "-" ]]; then
@@ -151,7 +164,7 @@ fi
 codesign_arguments=(
   --force
   --options runtime
-  --entitlements "$package_root/App/InputMate.entitlements"
+  --entitlements "$entitlements"
   --sign "$identity"
 )
 if [[ -n "$requirement" ]]; then
@@ -163,5 +176,16 @@ fi
 
 /usr/bin/codesign "${codesign_arguments[@]}" "$app_path"
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$app_path"
+
+if [[ "${INPUTMATE_REQUIRE_DISTRIBUTION:-0}" == 1 ]]; then
+  signed_entitlements="$(
+    /usr/bin/codesign -d --entitlements :- "$app_path" 2>&1 || true
+  )"
+  if /usr/bin/grep -Fq \
+    'com.apple.security.cs.disable-library-validation' \
+    <<< "$signed_entitlements"; then
+    fail "distribution build must keep library validation enabled"
+  fi
+fi
 
 print -r -- "$app_path"
