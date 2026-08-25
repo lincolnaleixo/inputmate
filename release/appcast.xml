@@ -4,18 +4,18 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>InputMate</title>
         <item>
-            <title>0.2.1</title>
-            <pubDate>Tue, 25 Aug 2026 11:18:22 +0200</pubDate>
+            <title>0.2.2</title>
+            <pubDate>Tue, 25 Aug 2026 11:28:36 +0200</pubDate>
             <link>https://github.com/lincolnaleixo/inputmate</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/lincolnaleixo/inputmate/releases/tag/v0.2.1</sparkle:fullReleaseNotesLink>
-            <sparkle:version>1.2.1</sparkle:version>
-            <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/lincolnaleixo/inputmate/releases/tag/v0.2.2</sparkle:fullReleaseNotesLink>
+            <sparkle:version>1.2.2</sparkle:version>
+            <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/lincolnaleixo/inputmate/releases/download/v0.2.1/InputMate.app.zip" length="1492787" type="application/octet-stream" sparkle:edSignature="6w6YU47JuPOXyCtJQ73xrvBYVBfOaf8+eMKOwvkYc6DR9qQynmUEFf69Luj0t7eM4dYPN8QgxbC8qxKEOCSXDA=="></enclosure>
+            <enclosure url="https://github.com/lincolnaleixo/inputmate/releases/download/v0.2.2/InputMate.app.zip" length="1492786" type="application/octet-stream" sparkle:edSignature="JFvWuNjCKZGNyvVqnQrQvLg9tmf6pS5XenTpZ0ksyvpDCF6lvjnmciF5+OInzwy/JPn7cyRFXrRwzYLnb6wvBg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: lCde3Nl8hWPec8h/lCVRGovDcY9vqMlci2K+cWjTeewi6E+tyLc+1QK9Jou4sCzN6zR5ZmKNXYvaONYGBuXVDA==
+edSignature: PGw7nzT9ViNQO56dlsHSqA5WdqY5a6VuL+0cOGA8KyuiTBetzQjKK1i9TEeIwcnSDWI7e/JW5Mbhuu//Xsk6CQ==
 length: 1334
 -->
