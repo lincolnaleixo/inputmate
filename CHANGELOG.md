@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.1](https://github.com/lincolnaleixo/inputmate/compare/v0.2.0...v0.2.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **cask:** describe notarized release accurately ([c0da4b9](https://github.com/lincolnaleixo/inputmate/commit/c0da4b9a0d87975e5cc470092875bbf65183fe1d))
+* **cask:** preserve distribution requirements ([67ef7aa](https://github.com/lincolnaleixo/inputmate/commit/67ef7aab369d49c30f37a58781992ebae6d6ff1e))
+* **release:** let Release Please create tags ([769b437](https://github.com/lincolnaleixo/inputmate/commit/769b437e86e1475e6c9ed12b4d3b8b834a84dc68))
+* **release:** sign DMG before notarization ([9f567d4](https://github.com/lincolnaleixo/inputmate/commit/9f567d4dfe7f7ff148949af1e3cca37406618704))
+* **security:** harden notarized release pipeline ([d683547](https://github.com/lincolnaleixo/inputmate/commit/d6835471602359182bd086f34edcbe89cc1e788b))
+
 ## [0.2.0](https://github.com/matrix-hq/inputmate/compare/v0.1.1...v0.2.0) (2026-08-24)
 
 
