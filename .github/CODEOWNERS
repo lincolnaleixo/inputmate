@@ -1,0 +1,9 @@
+* @lincolnaleixo
+
+/.github/workflows/ @lincolnaleixo
+/App/*.entitlements @lincolnaleixo
+/App/Info.plist @lincolnaleixo
+/scripts/build-app.sh @lincolnaleixo
+/scripts/notarize-item.sh @lincolnaleixo
+/scripts/unlock-build-keychain.sh @lincolnaleixo
+/release-please-config.json @lincolnaleixo
