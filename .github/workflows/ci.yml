@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Show Swift version
         run: swift --version
@@ -41,6 +41,21 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" \
             = "https://github.com/lincolnaleixo/inputmate/releases/latest/download/appcast.xml"
           test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")"
+
+          grep -Fq \
+            'com.apple.security.cs.disable-library-validation' \
+            App/InputMate.debug.entitlements
+          if grep -Fq \
+            'com.apple.security.cs.disable-library-validation' \
+            App/InputMate.release.entitlements; then
+            echo 'Release entitlements must keep Library Validation enabled' >&2
+            exit 1
+          fi
+
+          signed_entitlements="$(codesign -d --entitlements :- "$app" 2>&1 || true)"
+          grep -Fq \
+            'com.apple.security.cs.disable-library-validation' \
+            <<< "$signed_entitlements"
 
       - name: Verify DMG installer
         shell: bash
@@ -79,6 +94,7 @@ jobs:
       - name: Verify Homebrew cask
         env:
           HOMEBREW_NO_ASK: '1'
+          HOMEBREW_NO_AUTO_UPDATE: '1'
         shell: bash
         run: |
           version="$(awk -F'"' '/^  version / { print $2 }' Casks/inputmate.rb)"
