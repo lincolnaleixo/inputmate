@@ -53,7 +53,7 @@ mkdir -p "$updates"
   --force \
   --deep \
   --options runtime \
-  --entitlements "$root/App/InputMate.entitlements" \
+  --entitlements "$root/App/InputMate.debug.entitlements" \
   --sign - \
   "$temporary_directory/InputMate.app"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent \
