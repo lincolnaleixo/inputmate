@@ -7,6 +7,10 @@ on:
         description: Semantic-version tag created by Release Please
         required: true
         type: string
+      publish:
+        description: Publish assets to the existing GitHub Release
+        required: true
+        type: boolean
   workflow_dispatch:
     inputs:
       tag:
@@ -38,6 +42,7 @@ jobs:
         id: release
         env:
           CALLED_TAG: ${{ inputs.tag }}
+          PUBLISH_INPUT: ${{ inputs.publish || false }}
         shell: bash
         run: |
           if [[ -n "$CALLED_TAG" ]]; then
@@ -55,8 +60,11 @@ jobs:
           fi
 
           PUBLISH=false
-          if [[ "$GITHUB_EVENT_NAME" == workflow_call ]]; then
+          if [[ "$PUBLISH_INPUT" == true ]]; then
             PUBLISH=true
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            PUBLISH=false
           fi
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -372,6 +380,7 @@ jobs:
           fi
 
           xcrun stapler validate "$readback/InputMate.dmg"
+          codesign --verify --strict --verbose=2 "$readback/InputMate.dmg"
           spctl --assess \
             --type open \
             --context context:primary-signature \
