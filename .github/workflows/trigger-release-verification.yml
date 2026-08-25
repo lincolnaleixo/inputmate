@@ -21,6 +21,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # One-time verification after adding the Developer ID signature to the DMG.
           gh workflow run release.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main
