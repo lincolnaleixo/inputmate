@@ -14,6 +14,7 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 
 ## Requirements
 
+- Apple silicon Mac (`arm64`)
 - macOS 13 or later
 - Accessibility access for input handling and menu-item actions
 - Automation access for the macOS actions that require System Events
@@ -40,7 +41,7 @@ brew upgrade --cask lincolnaleixo/inputmate/inputmate
 brew uninstall --cask lincolnaleixo/inputmate/inputmate
 ```
 
-InputMate is currently distributed through this upstream tap rather than the official `homebrew/cask` catalog. Official release artifacts are signed with the InputMate Developer ID identity and notarized by Apple before publication.
+InputMate is currently distributed through this upstream tap rather than the official `homebrew/cask` catalog. Official release artifacts are signed with Developer ID and notarized by Apple before publication.
 
 ### Manual installation
 
@@ -48,7 +49,7 @@ Download the latest `InputMate.dmg` from GitHub Releases, open it, and drag `Inp
 
 The release also contains `InputMate.app.zip`, which is the compact payload used by Sparkle for in-app updates. The DMG is the primary installer for people downloading InputMate manually.
 
-Official release builds are signed with Developer ID, hardened, notarized, and stapled. CI and local builds remain ad-hoc by default, so artifacts produced outside the official release workflow may still require explicit approval in **System Settings > Privacy & Security**.
+Official release builds are signed with Developer ID, hardened, notarized, stapled, and assessed by Gatekeeper. CI and local builds remain ad-hoc by default, so artifacts produced outside the official release workflow may still require explicit approval in **System Settings > Privacy & Security**.
 
 After launching InputMate, grant Accessibility access when prompted if you enable mouse reversal or keyboard shortcuts.
 
@@ -103,7 +104,7 @@ To use your own stable Apple signing identity:
 CODESIGN_IDENTITY="Apple Development: Your Name (TEAMID)" zsh scripts/build-app.sh
 ```
 
-You can also provide `CODESIGN_REQUIREMENT` if you need to preserve a specific designated requirement across local rebuilds. Official releases use the fixed InputMate bundle requirement for Team ID `4F3CBH5L9D`.
+You can also provide `CODESIGN_REQUIREMENT` if you need to preserve a specific designated requirement across local rebuilds. Official releases use a stable Developer ID identity and designated requirement.
 
 ## Releases
 
@@ -114,27 +115,28 @@ See [`RELEASING.md`](RELEASING.md) for the version rules, commit examples, relea
 The release workflow:
 
 - runs the policy tests;
-- builds and validates `InputMate.app` on the trusted Apple Silicon `runner-inputmate-macos-01` repository runner;
-- signs the app and embedded Sparkle helpers with `Developer ID Application: BUYFROMUS LLC (4F3CBH5L9D)`;
-- notarizes and staples both the app and the DMG before creating final release archives;
+- builds and validates `InputMate.app` on a dedicated trusted Apple silicon runner;
+- signs the app and embedded Sparkle helpers with Developer ID and a secure timestamp;
+- uses release entitlements that keep Library Validation enabled;
+- notarizes, staples, and Gatekeeper-assesses both the app and the DMG;
 - creates `InputMate.dmg` with an Applications shortcut for manual installation;
 - creates `InputMate.app.zip` as the Sparkle update payload;
-- creates SHA-256 checksums for both packages;
+- creates SHA-256 checksums for both packages after stapling;
 - requires the Sparkle private seed matching `SUPublicEDKey` and generates a signed `appcast.xml`;
 - uploads the installer, updater payload, checksums, and appcast to GitHub Releases;
-- reads the published files back and verifies their checksums and stapled signatures;
+- downloads the published files again and verifies checksums, signatures, notarization tickets, and Gatekeeper acceptance;
 - refreshes `Casks/inputmate.rb` and the signed `release/appcast.xml` snapshot.
 
 When Release Please creates the stable tag and GitHub Release, it invokes the same release workflow directly so the signed assets are attached exactly once.
 
-Manual `workflow_dispatch` runs are always verify-only. They perform the complete build and Apple notarization but cannot publish or modify a GitHub Release. Official releases fail closed when the matching Sparkle seed is unavailable instead of preserving an appcast for a different version.
+Manual `workflow_dispatch` runs are always verify-only. They perform the complete build and Apple notarization but cannot publish or modify a GitHub Release. Official releases fail closed when signing, notarization, Gatekeeper, checksum, or Sparkle validation is unavailable.
 
 ## Security
 
 - API credentials belong in macOS Keychain.
 - The Sparkle private update key must remain outside the public repository and public workflow logs.
-- Signing identities and certificates are local configuration and must not be committed.
-- The release workflow reads `MAC_BUILD_KEYCHAIN_PASSWORD` and `SPARKLE_PRIVATE_KEY` only from GitHub Actions secrets. Their canonical broker references are `robots_mac_server.default.default.build_keychain_password` and `inputmate.default.default.sparkle_private_key`.
+- Signing identities and certificates are private release infrastructure and must not be committed.
+- The release workflow reads its keychain password and Sparkle signing key only from GitHub Actions secrets.
 - Environment files, private keys, certificates, provisioning profiles, and common local secret files are ignored by Git.
 - Selected text is not written to application logs.
 
