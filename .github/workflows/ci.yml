@@ -35,6 +35,15 @@ jobs:
           app=.build/app/InputMate.app
           test -d "$app/Contents/Frameworks/Sparkle.framework"
           test -f "$app/Contents/Resources/LICENSE"
+          test -f "$app/Contents/Resources/InputMate.icns"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist")" \
+            = "InputMate.icns"
+          icon_check_dir="$(mktemp -d)"
+          iconutil -c iconset \
+            "$app/Contents/Resources/InputMate.icns" \
+            -o "$icon_check_dir/InputMate.iconset"
+          test -f "$icon_check_dir/InputMate.iconset/icon_512x512@2x.png"
+          rm -rf "$icon_check_dir"
           codesign --verify --deep --strict --verbose=2 "$app"
           otool -L "$app/Contents/MacOS/InputMate" |
             grep -F '@rpath/Sparkle.framework/'
@@ -83,6 +92,7 @@ jobs:
           test -d "$mount_dir/InputMate.app"
           test -L "$mount_dir/Applications"
           test "$(readlink "$mount_dir/Applications")" = "/Applications"
+          test -f "$mount_dir/InputMate.app/Contents/Resources/InputMate.icns"
           codesign --verify --deep --strict --verbose=2 \
             "$mount_dir/InputMate.app"
 

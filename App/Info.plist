@@ -6,6 +6,8 @@
     <string>InputMate</string>
     <key>CFBundleExecutable</key>
     <string>InputMate</string>
+    <key>CFBundleIconFile</key>
+    <string>InputMate.icns</string>
     <key>CFBundleIdentifier</key>
     <string>com.robot.InputMate</string>
     <key>CFBundleInfoDictionaryVersion</key>
