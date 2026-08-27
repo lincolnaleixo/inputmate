@@ -76,26 +76,6 @@ jobs:
               build = build.replace(anchor, anchor + icon_copy, 1)
           build_path.write_text(build)
 
-          ci_path = Path('.github/workflows/ci.yml')
-          ci = ci_path.read_text()
-          anchor = '          test -f "$app/Contents/Resources/LICENSE"\n'
-          checks = (
-              '          test -f "$app/Contents/Resources/InputMate.icns"\n'
-              '          test "$(/usr/libexec/PlistBuddy -c \'Print :CFBundleIconFile\' "$app/Contents/Info.plist")" \\\n'
-              '            = "InputMate.icns"\n'
-              '          icon_check_dir="$(mktemp -d)"\n'
-              '          iconutil -c iconset \\\n'
-              '            "$app/Contents/Resources/InputMate.icns" \\\n'
-              '            -o "$icon_check_dir/InputMate.iconset"\n'
-              '          test -f "$icon_check_dir/InputMate.iconset/icon_512x512@2x.png"\n'
-              '          rm -rf "$icon_check_dir"\n'
-          )
-          if 'Contents/Resources/InputMate.icns' not in ci:
-              if anchor not in ci:
-                  raise SystemExit('ci.yml verification anchor not found')
-              ci = ci.replace(anchor, anchor + checks, 1)
-          ci_path.write_text(ci)
-
           readme_path = Path('README.md')
           readme = readme_path.read_text()
           badge = '<p align="center"><img src="App/InputMateIcon.png" width="160" alt="InputMate icon"></p>\n'
@@ -121,7 +101,6 @@ jobs:
             App/InputMate.icns \
             App/Info.plist \
             scripts/build-app.sh \
-            .github/workflows/ci.yml \
             README.md
           git commit -m 'feat(branding): add InputMate app icon'
           git push origin HEAD:feat/app-icon
