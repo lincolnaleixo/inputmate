@@ -1,0 +1,126 @@
+name: Apply app icon
+
+on:
+  push:
+    branches:
+      - feat/app-icon
+    paths:
+      - .github/workflows/apply-app-icon.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: macos-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: feat/app-icon
+
+      - name: Generate macOS icon and patch packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source_icon=App/InputMateIcon.png
+          test -f "$source_icon"
+          test "$(sips -g pixelWidth "$source_icon" | awk '/pixelWidth/ { print $2 }')" = 512
+          test "$(sips -g pixelHeight "$source_icon" | awk '/pixelHeight/ { print $2 }')" = 512
+
+          work_dir="$(mktemp -d)"
+          iconset="$work_dir/InputMate.iconset"
+          mkdir -p "$iconset"
+          trap 'rm -rf "$work_dir"' EXIT
+
+          render_icon() {
+            local pixels="$1"
+            local filename="$2"
+            sips -z "$pixels" "$pixels" "$source_icon" \
+              --out "$iconset/$filename" >/dev/null
+          }
+
+          render_icon 16 icon_16x16.png
+          render_icon 32 icon_16x16@2x.png
+          render_icon 32 icon_32x32.png
+          render_icon 64 icon_32x32@2x.png
+          render_icon 128 icon_128x128.png
+          render_icon 256 icon_128x128@2x.png
+          render_icon 256 icon_256x256.png
+          render_icon 512 icon_256x256@2x.png
+          render_icon 512 icon_512x512.png
+          render_icon 1024 icon_512x512@2x.png
+
+          iconutil -c icns "$iconset" -o App/InputMate.icns
+          iconutil -c iconset App/InputMate.icns -o "$work_dir/verified.iconset"
+          test -f "$work_dir/verified.iconset/icon_512x512@2x.png"
+
+          /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconFile' App/Info.plist \
+            >/dev/null 2>&1 || true
+          /usr/libexec/PlistBuddy -c \
+            'Add :CFBundleIconFile string InputMate.icns' App/Info.plist
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          build_path = Path('scripts/build-app.sh')
+          build = build_path.read_text()
+          anchor = 'cp "$package_root/LICENSE" "$app_path/Contents/Resources/LICENSE"\n'
+          icon_copy = 'cp "$package_root/App/InputMate.icns" "$app_path/Contents/Resources/InputMate.icns"\n'
+          if icon_copy not in build:
+              if anchor not in build:
+                  raise SystemExit('build-app.sh copy anchor not found')
+              build = build.replace(anchor, anchor + icon_copy, 1)
+          build_path.write_text(build)
+
+          ci_path = Path('.github/workflows/ci.yml')
+          ci = ci_path.read_text()
+          anchor = '          test -f "$app/Contents/Resources/LICENSE"\n'
+          checks = '''          test -f "$app/Contents/Resources/InputMate.icns"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist")" \\
+            = "InputMate.icns"
+          icon_check_dir="$(mktemp -d)"
+          iconutil -c iconset \\
+            "$app/Contents/Resources/InputMate.icns" \\
+            -o "$icon_check_dir/InputMate.iconset"
+          test -f "$icon_check_dir/InputMate.iconset/icon_512x512@2x.png"
+          rm -rf "$icon_check_dir"
+'''
+          if 'Contents/Resources/InputMate.icns' not in ci:
+              if anchor not in ci:
+                  raise SystemExit('ci.yml verification anchor not found')
+              ci = ci.replace(anchor, anchor + checks, 1)
+          ci_path.write_text(ci)
+
+          readme_path = Path('README.md')
+          readme = readme_path.read_text()
+          badge = '<p align="center"><img src="App/InputMateIcon.png" width="160" alt="InputMate icon"></p>\n'
+          if badge not in readme:
+              heading = '# InputMate\n'
+              if heading not in readme:
+                  raise SystemExit('README heading not found')
+              readme = readme.replace(heading, heading + '\n' + badge, 1)
+          readme_path.write_text(readme)
+          PY
+
+          plutil -lint App/Info.plist
+          zsh -n scripts/build-app.sh
+
+      - name: Commit app icon integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            App/InputMateIcon.png \
+            App/InputMate.icns \
+            App/Info.plist \
+            scripts/build-app.sh \
+            .github/workflows/ci.yml \
+            README.md
+          git commit -m 'feat(branding): add InputMate app icon'
+          git push origin HEAD:feat/app-icon
