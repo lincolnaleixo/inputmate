@@ -1,5 +1,7 @@
 # InputMate
 
+<p align="center"><img src="App/InputMateIcon.png" width="160" alt="InputMate icon"></p>
+
 InputMate is a native macOS menu-bar utility for mouse and trackpad input, global keyboard shortcuts, optional AI-backed text transformations, and secure in-app updates.
 
 ## Features

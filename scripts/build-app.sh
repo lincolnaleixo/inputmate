@@ -98,6 +98,7 @@ mkdir -p \
 cp "$package_root/App/Info.plist" "$app_path/Contents/Info.plist"
 cp "$binary_dir/InputMate" "$app_path/Contents/MacOS/InputMate"
 cp "$package_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
+cp "$package_root/App/InputMate.icns" "$app_path/Contents/Resources/InputMate.icns"
 /usr/bin/ditto \
   "$sparkle_framework" \
   "$app_path/Contents/Frameworks/Sparkle.framework"
