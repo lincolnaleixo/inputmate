@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/lincolnaleixo/inputmate/compare/v0.2.2...v0.3.0) (2026-08-27)
+
+
+### Features
+
+* **branding:** add InputMate app icon ([d48dfdf](https://github.com/lincolnaleixo/inputmate/commit/d48dfdf31e16d611e2907d5438024c9c8c8bee28))
+
 ## [0.2.2](https://github.com/lincolnaleixo/inputmate/compare/v0.2.1...v0.2.2) (2026-08-25)
 
 
