@@ -79,16 +79,17 @@ jobs:
           ci_path = Path('.github/workflows/ci.yml')
           ci = ci_path.read_text()
           anchor = '          test -f "$app/Contents/Resources/LICENSE"\n'
-          checks = '''          test -f "$app/Contents/Resources/InputMate.icns"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist")" \\
-            = "InputMate.icns"
-          icon_check_dir="$(mktemp -d)"
-          iconutil -c iconset \\
-            "$app/Contents/Resources/InputMate.icns" \\
-            -o "$icon_check_dir/InputMate.iconset"
-          test -f "$icon_check_dir/InputMate.iconset/icon_512x512@2x.png"
-          rm -rf "$icon_check_dir"
-'''
+          checks = (
+              '          test -f "$app/Contents/Resources/InputMate.icns"\n'
+              '          test "$(/usr/libexec/PlistBuddy -c \'Print :CFBundleIconFile\' "$app/Contents/Info.plist")" \\\n'
+              '            = "InputMate.icns"\n'
+              '          icon_check_dir="$(mktemp -d)"\n'
+              '          iconutil -c iconset \\\n'
+              '            "$app/Contents/Resources/InputMate.icns" \\\n'
+              '            -o "$icon_check_dir/InputMate.iconset"\n'
+              '          test -f "$icon_check_dir/InputMate.iconset/icon_512x512@2x.png"\n'
+              '          rm -rf "$icon_check_dir"\n'
+          )
           if 'Contents/Resources/InputMate.icns' not in ci:
               if anchor not in ci:
                   raise SystemExit('ci.yml verification anchor not found')
