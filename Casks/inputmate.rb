@@ -1,6 +1,6 @@
 cask "inputmate" do
-  version "0.3.0"
-  sha256 "7c4dcc3ac53a63204fa8cd74b28c4ee9ee0d9efc7ae33dbc485df2280f7b8408"
+  version "0.4.0"
+  sha256 "5ec028e5160f0f7c19f58135e4c7f8e4603d5f256c0a46f6fc8d7580cc4213ad"
 
   url "https://github.com/lincolnaleixo/inputmate/releases/download/v#{version}/InputMate.dmg",
       verified: "github.com/lincolnaleixo/inputmate/"
