@@ -14,8 +14,8 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 ## Security and privacy
 
 - Never commit API keys, passwords, signing certificates, provisioning profiles, private hostnames, machine-specific credentials, or release-runner details.
-- Store the Cerebras API key only in macOS Keychain.
-- Keep personal shortcuts, application paths, and local deployment configuration in user preferences rather than factory defaults.
+- Store AI provider API keys only in macOS Keychain.
+- Persist the user-selected provider, model, personal shortcuts, application paths, and local deployment configuration in user preferences rather than source files.
 - Do not log selected user text or API credentials.
 - Keep debug-only entitlements separate from release entitlements. Official releases must keep Library Validation enabled.
 

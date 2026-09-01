@@ -26,7 +26,9 @@ final class AppModel: ObservableObject {
   @Published private(set) var reversesMouseWheel: Bool
   @Published private(set) var handlesKeyboardShortcuts: Bool
   @Published private(set) var shortcutDefinitions: [KeyboardShortcutDefinition]
-  @Published private(set) var hasCerebrasAPIKey: Bool
+  @Published private(set) var textTransformationProvider: AIProvider
+  @Published private(set) var textTransformationModel: String
+  @Published private(set) var hasTextTransformationAPIKey: Bool
   @Published private(set) var hasAccessibilityAccess = false
   @Published private(set) var opensAtLogin = false
   @Published private(set) var statusMessage: String?
@@ -44,7 +46,10 @@ final class AppModel: ObservableObject {
     reversesMouseWheel = defaults.bool(forKey: DefaultsKey.reversesMouseWheel)
     handlesKeyboardShortcuts = defaults.bool(forKey: DefaultsKey.handlesKeyboardShortcuts)
     shortcutDefinitions = Self.loadShortcutDefinitions(from: defaults)
-    hasCerebrasAPIKey = KeychainSecretStore.cerebrasAPIKey() != nil
+    let aiConfiguration = AIConfigurationStore.configuration(from: defaults)
+    textTransformationProvider = aiConfiguration.provider
+    textTransformationModel = aiConfiguration.model
+    hasTextTransformationAPIKey = Self.hasAPIKey(for: aiConfiguration.provider)
     Self.installTextTransformationDefaultsIfNeeded(
       into: &shortcutDefinitions,
       defaults: defaults
@@ -163,27 +168,63 @@ final class AppModel: ObservableObject {
     persistShortcutDefinitions()
   }
 
+  func setTextTransformationProvider(_ provider: AIProvider) {
+    AIConfigurationStore.setProvider(provider, in: defaults)
+    textTransformationProvider = provider
+    textTransformationModel = AIConfigurationStore.model(for: provider, from: defaults)
+    hasTextTransformationAPIKey = Self.hasAPIKey(for: provider)
+    statusMessage = nil
+  }
+
   @discardableResult
-  func saveCerebrasAPIKey(_ value: String) -> Bool {
+  func saveTextTransformationModel(_ value: String) -> Bool {
+    guard
+      AIConfigurationStore.setModel(
+        value,
+        for: textTransformationProvider,
+        in: defaults
+      )
+    else {
+      statusMessage = "Enter a model ID."
+      return false
+    }
+
+    textTransformationModel = AIConfigurationStore.model(
+      for: textTransformationProvider,
+      from: defaults
+    )
+    statusMessage = nil
+    return true
+  }
+
+  func resetTextTransformationModel() {
+    AIConfigurationStore.resetModel(for: textTransformationProvider, in: defaults)
+    textTransformationModel = textTransformationProvider.defaultModel
+    statusMessage = nil
+  }
+
+  @discardableResult
+  func saveTextTransformationAPIKey(_ value: String) -> Bool {
     do {
-      try KeychainSecretStore.saveCerebrasAPIKey(value)
-      hasCerebrasAPIKey = true
+      try KeychainSecretStore.saveAPIKey(value, for: textTransformationProvider)
+      hasTextTransformationAPIKey = true
       statusMessage = nil
       return true
     } catch {
-      hasCerebrasAPIKey = KeychainSecretStore.cerebrasAPIKey() != nil
+      hasTextTransformationAPIKey = Self.hasAPIKey(for: textTransformationProvider)
       statusMessage = "Could not save the API key: \(error.localizedDescription)"
       return false
     }
   }
 
-  func removeCerebrasAPIKey() {
+  func removeTextTransformationAPIKey() {
     do {
-      try KeychainSecretStore.removeCerebrasAPIKey()
-      hasCerebrasAPIKey = false
-      statusMessage = "The Cerebras API key was removed from Keychain."
+      try KeychainSecretStore.removeAPIKey(for: textTransformationProvider)
+      hasTextTransformationAPIKey = false
+      statusMessage =
+        "The \(textTransformationProvider.displayName) API key was removed from Keychain."
     } catch {
-      hasCerebrasAPIKey = KeychainSecretStore.cerebrasAPIKey() != nil
+      hasTextTransformationAPIKey = Self.hasAPIKey(for: textTransformationProvider)
       statusMessage = "Could not remove the API key: \(error.localizedDescription)"
     }
   }
@@ -430,5 +471,10 @@ final class AppModel: ObservableObject {
     if defaults.object(forKey: DefaultsKey.handlesKeyboardShortcuts) == nil {
       defaults.set(true, forKey: DefaultsKey.handlesKeyboardShortcuts)
     }
+  }
+
+  private static func hasAPIKey(for provider: AIProvider) -> Bool {
+    guard let apiKey = KeychainSecretStore.apiKey(for: provider) else { return false }
+    return !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 }

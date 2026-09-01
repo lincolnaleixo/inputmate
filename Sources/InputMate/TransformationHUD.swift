@@ -65,10 +65,10 @@ final class TransformationHUD {
     panel.contentView = background
   }
 
-  func showProgress(_ text: String) {
+  func showProgress(_ text: String, detail: String) {
     hideWorkItem?.cancel()
     titleLabel.stringValue = text
-    detailLabel.stringValue = "Cerebras · gemma-4-31b"
+    detailLabel.stringValue = detail
     progressIndicator.isHidden = false
     progressIndicator.startAnimation(nil)
     iconView.isHidden = true
@@ -106,7 +106,8 @@ final class TransformationHUD {
   }
 
   private func positionAndShow() {
-    let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+    let screen =
+      NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
     if let screenFrame = screen?.visibleFrame {
       let origin = NSPoint(
         x: screenFrame.midX - panel.frame.width / 2,
