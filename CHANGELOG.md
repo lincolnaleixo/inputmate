@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/lincolnaleixo/inputmate/compare/v0.3.0...v0.4.0) (2026-09-01)
+
+
+### Features
+
+* support configurable AI providers and models ([#19](https://github.com/lincolnaleixo/inputmate/issues/19)) ([4e5b22c](https://github.com/lincolnaleixo/inputmate/commit/4e5b22c868b072bdfeef3ff59cb29f74cd659737))
+
 ## [0.3.0](https://github.com/lincolnaleixo/inputmate/compare/v0.2.2...v0.3.0) (2026-08-27)
 
 
