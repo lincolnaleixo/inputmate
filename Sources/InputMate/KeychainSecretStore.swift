@@ -1,18 +1,14 @@
 import Foundation
+import InputMateCore
 import Security
 
 enum KeychainSecretStore {
-  static let cerebrasService = "com.robot.InputMate.cerebras"
-  static let cerebrasAccount = "api-key"
+  private static let account = "api-key"
 
-  static func cerebrasAPIKey() -> String? {
-    let query: [CFString: Any] = [
-      kSecClass: kSecClassGenericPassword,
-      kSecAttrService: cerebrasService,
-      kSecAttrAccount: cerebrasAccount,
-      kSecReturnData: true,
-      kSecMatchLimit: kSecMatchLimitOne,
-    ]
+  static func apiKey(for provider: AIProvider) -> String? {
+    var query = baseQuery(for: provider)
+    query[kSecReturnData] = true
+    query[kSecMatchLimit] = kSecMatchLimitOne
 
     var result: CFTypeRef?
     guard
@@ -22,17 +18,13 @@ enum KeychainSecretStore {
     return String(data: data, encoding: .utf8)
   }
 
-  static func saveCerebrasAPIKey(_ value: String) throws {
+  static func saveAPIKey(_ value: String, for provider: AIProvider) throws {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else {
       throw KeychainSecretError.emptyValue
     }
 
-    let query: [CFString: Any] = [
-      kSecClass: kSecClassGenericPassword,
-      kSecAttrService: cerebrasService,
-      kSecAttrAccount: cerebrasAccount,
-    ]
+    let query = baseQuery(for: provider)
     let attributes: [CFString: Any] = [kSecValueData: data]
     let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
 
@@ -49,16 +41,19 @@ enum KeychainSecretStore {
     }
   }
 
-  static func removeCerebrasAPIKey() throws {
-    let query: [CFString: Any] = [
-      kSecClass: kSecClassGenericPassword,
-      kSecAttrService: cerebrasService,
-      kSecAttrAccount: cerebrasAccount,
-    ]
-    let status = SecItemDelete(query as CFDictionary)
+  static func removeAPIKey(for provider: AIProvider) throws {
+    let status = SecItemDelete(baseQuery(for: provider) as CFDictionary)
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw KeychainSecretError.status(status)
     }
+  }
+
+  private static func baseQuery(for provider: AIProvider) -> [CFString: Any] {
+    [
+      kSecClass: kSecClassGenericPassword,
+      kSecAttrService: provider.keychainService,
+      kSecAttrAccount: account,
+    ]
   }
 }
 

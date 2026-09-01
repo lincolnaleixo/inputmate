@@ -1,9 +1,11 @@
+import InputMateCore
 import SwiftUI
 
 struct AISettingsView: View {
   @ObservedObject var model: AppModel
 
   @State private var apiKey = ""
+  @State private var modelID = ""
   @State private var feedback: String?
   @State private var editorContext: ShortcutEditorContext?
 
@@ -22,33 +24,77 @@ struct AISettingsView: View {
         LabeledContent("Global input capture") {
           Label(
             model.isActivelyHandlingInput ? "Active" : "Inactive",
-            systemImage: model.isActivelyHandlingInput ? "waveform.path" : "waveform.path.badge.minus"
+            systemImage: model.isActivelyHandlingInput
+              ? "waveform.path" : "waveform.path.badge.minus"
           )
           .foregroundStyle(model.isActivelyHandlingInput ? .green : .orange)
         }
       }
 
       Section("Text Transformations") {
-        LabeledContent("Provider", value: "Cerebras")
-        LabeledContent("Model", value: "gemma-4-31b")
+        Picker(
+          "Provider",
+          selection: Binding(
+            get: { model.textTransformationProvider },
+            set: { provider in
+              model.setTextTransformationProvider(provider)
+              modelID = model.textTransformationModel
+              apiKey = ""
+              feedback = nil
+            }
+          )
+        ) {
+          ForEach(AIProvider.allCases) { provider in
+            Text(provider.displayName).tag(provider)
+          }
+        }
+
+        TextField("Model", text: $modelID)
+          .onSubmit { saveModel() }
+
+        HStack {
+          Button("Save Model", action: saveModel)
+            .disabled(modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+          Menu("Suggested Models") {
+            ForEach(model.textTransformationProvider.suggestedModels, id: \.self) {
+              suggestedModel in
+              Button(suggestedModel) {
+                modelID = suggestedModel
+                saveModel()
+              }
+            }
+          }
+
+          Button("Use Default") {
+            model.resetTextTransformationModel()
+            modelID = model.textTransformationModel
+            feedback =
+              "Using the default model for \(model.textTransformationProvider.displayName)."
+          }
+        }
 
         HStack {
           Label(
-            model.hasCerebrasAPIKey ? "API key stored in Keychain" : "API key required",
-            systemImage: model.hasCerebrasAPIKey ? "checkmark.shield.fill" : "key"
+            model.hasTextTransformationAPIKey
+              ? "\(model.textTransformationProvider.displayName) API key stored in Keychain"
+              : "\(model.textTransformationProvider.displayName) API key required",
+            systemImage: model.hasTextTransformationAPIKey ? "checkmark.shield.fill" : "key"
           )
-          .foregroundStyle(model.hasCerebrasAPIKey ? .green : .orange)
+          .foregroundStyle(model.hasTextTransformationAPIKey ? .green : .orange)
           Spacer()
         }
 
         SecureField(
-          model.hasCerebrasAPIKey ? "Replace API key" : "Cerebras API key",
+          model.hasTextTransformationAPIKey
+            ? "Replace API key"
+            : "\(model.textTransformationProvider.displayName) API key",
           text: $apiKey
         )
 
         HStack {
           Button("Save to Keychain") {
-            if model.saveCerebrasAPIKey(apiKey) {
+            if model.saveTextTransformationAPIKey(apiKey) {
               apiKey = ""
               feedback = "Saved securely in Keychain."
             } else {
@@ -57,9 +103,9 @@ struct AISettingsView: View {
           }
           .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-          if model.hasCerebrasAPIKey {
+          if model.hasTextTransformationAPIKey {
             Button("Remove Key", role: .destructive) {
-              model.removeCerebrasAPIKey()
+              model.removeTextTransformationAPIKey()
               feedback = model.statusMessage
             }
           }
@@ -74,7 +120,7 @@ struct AISettingsView: View {
 
       Section("Privacy") {
         Text(
-          "When you invoke a text transformation, the selected text is sent to Cerebras and replaced with the response. InputMate preserves your existing clipboard contents."
+          "When you invoke a text transformation, the selected text is sent to \(model.textTransformationProvider.displayName) using \(model.textTransformationModel) and replaced with the response. InputMate preserves your existing clipboard contents."
         )
         .foregroundStyle(.secondary)
       }
@@ -107,13 +153,25 @@ struct AISettingsView: View {
       }
     }
     .formStyle(.grouped)
-    .frame(minWidth: 520, minHeight: 430)
+    .frame(minWidth: 560, minHeight: 520)
+    .onAppear {
+      modelID = model.textTransformationModel
+    }
     .sheet(item: $editorContext) { context in
       ShortcutEditorView(
         definition: context.definition,
         existingDefinitions: model.shortcutDefinitions,
         onSave: model.saveShortcut
       )
+    }
+  }
+
+  private func saveModel() {
+    if model.saveTextTransformationModel(modelID) {
+      modelID = model.textTransformationModel
+      feedback = "Model saved for \(model.textTransformationProvider.displayName)."
+    } else {
+      feedback = model.statusMessage
     }
   }
 

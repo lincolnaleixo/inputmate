@@ -1,4 +1,5 @@
 import AppKit
+import InputMateCore
 import Sparkle
 import SwiftUI
 
@@ -68,8 +69,11 @@ struct MenuContent: View {
     }
     .keyboardShortcut(",", modifiers: .command)
 
-    if !model.hasCerebrasAPIKey {
-      Label("Cerebras API key required", systemImage: "key")
+    if !model.hasTextTransformationAPIKey {
+      Label(
+        "\(model.textTransformationProvider.displayName) API key required",
+        systemImage: "key"
+      )
     }
 
     Divider()

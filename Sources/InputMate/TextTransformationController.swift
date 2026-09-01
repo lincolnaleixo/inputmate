@@ -38,8 +38,15 @@ final class TextTransformationController: @unchecked Sendable {
       TransformationHUD.shared.showError("Unknown text transformation")
       return
     }
-    guard let apiKey = KeychainSecretStore.cerebrasAPIKey(), !apiKey.isEmpty else {
-      TransformationHUD.shared.showError("Add the Cerebras API key in InputMate Settings")
+
+    let configuration = AIConfigurationStore.configuration()
+    guard
+      let apiKey = KeychainSecretStore.apiKey(for: configuration.provider),
+      !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else {
+      TransformationHUD.shared.showError(
+        "Add the \(configuration.provider.displayName) API key in InputMate Settings"
+      )
       return
     }
     guard let targetApplication = NSWorkspace.shared.frontmostApplication else {
@@ -49,8 +56,13 @@ final class TextTransformationController: @unchecked Sendable {
 
     isRunning = true
     defer { isRunning = false }
-    logger.info("Transformation shortcut invoked: preset=\(presetID, privacy: .public)")
-    TransformationHUD.shared.showProgress(preset.progressTitle)
+    logger.info(
+      "Transformation shortcut invoked: preset=\(presetID, privacy: .public) provider=\(configuration.provider.rawValue, privacy: .public) model=\(configuration.model, privacy: .public)"
+    )
+    TransformationHUD.shared.showProgress(
+      preset.progressTitle,
+      detail: configuration.displayName
+    )
 
     let overallStartedAt = CFAbsoluteTimeGetCurrent()
     var selectionMilliseconds = 0.0
@@ -68,6 +80,7 @@ final class TextTransformationController: @unchecked Sendable {
       let responseText = try await requestTransformation(
         text: selection.text,
         preset: preset,
+        configuration: configuration,
         apiKey: apiKey
       )
       let transformedText =
@@ -269,45 +282,58 @@ final class TextTransformationController: @unchecked Sendable {
   private func requestTransformation(
     text: String,
     preset: TextTransformationPreset,
+    configuration: AIConfiguration,
     apiKey: String
   ) async throws -> String {
-    guard let url = URL(string: "https://api.cerebras.ai/v1/chat/completions") else {
-      throw TextTransformationError.invalidEndpoint
-    }
-
-    let body = CerebrasRequest(
-      model: "gemma-4-31b",
+    let body = ChatCompletionRequest(
+      model: configuration.model,
       stream: false,
-      maxTokens: 32_768,
+      maxCompletionTokens: configuration.provider.maxCompletionTokens,
       temperature: preset.temperature,
       topP: 0.95,
+      reasoningEffort: configuration.provider.reasoningEffort(for: configuration.model),
+      reasoningFormat: configuration.provider.reasoningFormat(for: configuration.model),
       messages: [
-        CerebrasMessage(role: "system", content: preset.systemPrompt),
-        CerebrasMessage(role: "user", content: preset.userPrompt(for: text)),
+        ChatMessage(role: "system", content: preset.systemPrompt),
+        ChatMessage(role: "user", content: preset.userPrompt(for: text)),
       ]
     )
-    var request = URLRequest(url: url)
+    var request = URLRequest(url: configuration.provider.chatCompletionsURL)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
     request.httpBody = try JSONEncoder().encode(body)
     request.timeoutInterval = 60
 
-    let (data, response) = try await URLSession.shared.data(for: request)
-    guard let httpResponse = response as? HTTPURLResponse,
+    let data: Data
+    let response: URLResponse
+    do {
+      (data, response) = try await URLSession.shared.data(for: request)
+    } catch {
+      throw TextTransformationError.networkError(
+        provider: configuration.provider,
+        message: error.localizedDescription
+      )
+    }
+
+    guard
+      let httpResponse = response as? HTTPURLResponse,
       (200..<300).contains(httpResponse.statusCode)
     else {
       let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-      throw TextTransformationError.serviceError(status)
+      throw TextTransformationError.serviceError(
+        provider: configuration.provider,
+        status: status
+      )
     }
 
-    let result = try JSONDecoder().decode(CerebrasResponse.self, from: data)
+    let result = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
     guard
       let content = result.choices.first?.message.content
         .trimmingCharacters(in: .whitespacesAndNewlines),
       !content.isEmpty
     else {
-      throw TextTransformationError.emptyResponse
+      throw TextTransformationError.emptyResponse(provider: configuration.provider)
     }
     return content
   }
@@ -369,11 +395,13 @@ private struct PasteboardSnapshot {
   let items: [[NSPasteboard.PasteboardType: Data]]
 
   static func capture(from pasteboard: NSPasteboard) -> PasteboardSnapshot {
-    let items = pasteboard.pasteboardItems?.map { item in
-      Dictionary(uniqueKeysWithValues: item.types.compactMap { type in
-        item.data(forType: type).map { (type, $0) }
-      })
-    } ?? []
+    let items =
+      pasteboard.pasteboardItems?.map { item in
+        Dictionary(
+          uniqueKeysWithValues: item.types.compactMap { type in
+            item.data(forType: type).map { (type, $0) }
+          })
+      } ?? []
     return PasteboardSnapshot(items: items)
   }
 
@@ -392,40 +420,44 @@ private struct PasteboardSnapshot {
   }
 }
 
-private struct CerebrasRequest: Encodable {
+private struct ChatCompletionRequest: Encodable {
   let model: String
   let stream: Bool
-  let maxTokens: Int
+  let maxCompletionTokens: Int
   let temperature: Double
   let topP: Double
-  let messages: [CerebrasMessage]
+  let reasoningEffort: String?
+  let reasoningFormat: String?
+  let messages: [ChatMessage]
 
   enum CodingKeys: String, CodingKey {
     case model, stream, temperature, messages
-    case maxTokens = "max_tokens"
+    case maxCompletionTokens = "max_completion_tokens"
     case topP = "top_p"
+    case reasoningEffort = "reasoning_effort"
+    case reasoningFormat = "reasoning_format"
   }
 }
 
-private struct CerebrasMessage: Codable {
+private struct ChatMessage: Codable {
   let role: String
   let content: String
 }
 
-private struct CerebrasResponse: Decodable {
+private struct ChatCompletionResponse: Decodable {
   let choices: [Choice]
 
   struct Choice: Decodable {
-    let message: CerebrasMessage
+    let message: ChatMessage
   }
 }
 
 private enum TextTransformationError: LocalizedError {
   case noSelectedText
   case couldNotUseClipboard
-  case invalidEndpoint
-  case serviceError(Int)
-  case emptyResponse
+  case networkError(provider: AIProvider, message: String)
+  case serviceError(provider: AIProvider, status: Int)
+  case emptyResponse(provider: AIProvider)
 
   var errorDescription: String? {
     switch self {
@@ -433,12 +465,14 @@ private enum TextTransformationError: LocalizedError {
       "Select some editable text first"
     case .couldNotUseClipboard:
       "Could not prepare the transformed text"
-    case .invalidEndpoint:
-      "The Cerebras endpoint is invalid"
-    case .serviceError(let status):
-      status == 0 ? "Could not reach Cerebras" : "Cerebras returned HTTP \(status)"
-    case .emptyResponse:
-      "Cerebras returned an empty response"
+    case .networkError(let provider, let message):
+      "Could not reach \(provider.displayName): \(message)"
+    case .serviceError(let provider, let status):
+      status == 0
+        ? "Could not reach \(provider.displayName)"
+        : "\(provider.displayName) returned HTTP \(status)"
+    case .emptyResponse(let provider):
+      "\(provider.displayName) returned an empty response"
     }
   }
 }

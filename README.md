@@ -10,7 +10,7 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 - Record and edit global shortcuts with left and right modifier keys tracked independently.
 - Limit shortcuts to selected applications.
 - Open applications and URLs, run Apple Shortcuts, send keyboard shortcuts, press menu items, type text, and trigger macOS actions.
-- Transform selected text with Cerebras while storing the API key in macOS Keychain.
+- Transform selected text with Cerebras or Groq, configurable models, and provider-specific API keys stored in macOS Keychain.
 - Check for, download, and install signed updates with Sparkle.
 - Launch automatically at login.
 
@@ -20,7 +20,7 @@ InputMate is a native macOS menu-bar utility for mouse and trackpad input, globa
 - macOS 13 or later
 - Accessibility access for input handling and menu-item actions
 - Automation access for the macOS actions that require System Events
-- A Cerebras API key only if you want to use AI text transformations
+- A Cerebras or Groq API key only if you want to use AI text transformations
 
 ## Install
 
@@ -63,9 +63,11 @@ The app reads its signed appcast from the latest GitHub Release. Every update ar
 
 ## AI text transformations
 
-InputMate includes factory shortcuts for translating selected text to Spanish or English and improving writing. The API key is stored in macOS Keychain and is never written to application preferences or source files.
+InputMate includes factory shortcuts for translating selected text to Spanish or English and improving writing. In **Text Transformation Settings…**, choose Cerebras or Groq, select a suggested model or enter any model ID supported by the provider, and save that provider's API key.
 
-The transformation request sends the selected text to the configured Cerebras API endpoint. If you do not want selected text sent to an external service, leave the API key unset and do not use transformation actions.
+Provider and model preferences are stored in application preferences. Cerebras and Groq API keys are stored separately in macOS Keychain and are never written to application preferences or source files. Existing installations continue to use Cerebras with `gemma-4-31b` until the configuration is changed. Groq defaults to `qwen/qwen3.8-27b`.
+
+The transformation request sends the selected text to the configured provider and replaces it with the returned text. If you do not want selected text sent to an external service, leave the API keys unset and do not use transformation actions.
 
 ## Shortcut manager
 
