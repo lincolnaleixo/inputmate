@@ -38,7 +38,7 @@ jobs:
           wait "$writer_pid"
           writer_pid=
           echo RETROLIFE_PASSWORD_RELAY=consumed
-          /bin/sleep 2
+          /bin/sleep 20
           set +e
           /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/generate_keys \
             --account io.github.lincolnaleixo.retrolife.sparkle \
