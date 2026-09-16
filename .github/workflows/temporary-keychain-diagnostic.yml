@@ -1,0 +1,87 @@
+name: Temporary keychain unlock diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unlock:
+    runs-on: [self-hosted, inputmate, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - name: Compare InputMate and host-helper unlock paths
+        env:
+          MAC_BUILD_KEYCHAIN_PASSWORD: ${{ secrets.MAC_BUILD_KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          keychain=/Users/lincolnaleixo/Library/Keychains/login.keychain-db
+          cleanup() {
+            /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          /usr/bin/security lock-keychain "$keychain"
+          /usr/bin/expect <<'EOF'
+          log_user 0
+          set timeout 30
+          set password $::env(MAC_BUILD_KEYCHAIN_PASSWORD)
+          set keychain [file normalize "/Users/lincolnaleixo/Library/Keychains/login.keychain-db"]
+          spawn security unlock-keychain $keychain
+          expect {
+            -re "(?i)password.*:" {
+              send -- "$password\r"
+              exp_continue
+            }
+            eof {}
+            timeout { exit 2 }
+          }
+          set result [wait]
+          exit [lindex $result 3]
+          EOF
+          echo DIRECT_EXPECT=success
+          /usr/bin/security show-keychain-info "$keychain" >/dev/null
+          /usr/bin/security lock-keychain "$keychain"
+
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          keychain = "/Users/lincolnaleixo/Library/Keychains/login.keychain-db"
+          protected = {
+              "MACOS_KEYCHAIN_PASSWORD", "MACOS_CERTIFICATE_P12_BASE64",
+              "MACOS_CERTIFICATE_PASSWORD", "APPLE_ID", "APPLE_APP_PASSWORD",
+              "APPLE_API_KEY_ID", "APPLE_API_ISSUER_ID", "APPLE_API_KEY_P8_BASE64",
+              "SPARKLE_PRIVATE_KEY", "GH_TOKEN", "GITHUB_TOKEN",
+          }
+          clean = {key: value for key, value in os.environ.items()
+                   if key not in protected}
+          clean["MACOS_KEYCHAIN_PASSWORD"] = os.environ["MAC_BUILD_KEYCHAIN_PASSWORD"]
+          script = r'''
+          set timeout 30
+          log_user 0
+          spawn /usr/bin/security unlock-keychain [lindex $argv 0]
+          expect {
+              -re {(?i)password.*:} { send -- "$env(MACOS_KEYCHAIN_PASSWORD)\r"; exp_continue }
+              eof {}
+              timeout { exit 2 }
+          }
+          set result [wait]
+          exit [lindex $result 3]
+          '''
+          result = subprocess.run(
+              ["/usr/bin/expect", "-c", script, keychain],
+              cwd="/Users/lincolnaleixo/actions-runner-retrolife/_work/retrolife/retrolife",
+              env=clean,
+              capture_output=True,
+              text=True,
+          )
+          if result.returncode:
+              print("PYTHON_HELPER_EXPECT=failed exit=" + str(result.returncode))
+              sys.exit(1)
+          print("PYTHON_HELPER_EXPECT=success")
+          PY
+          /usr/bin/security show-keychain-info "$keychain" >/dev/null
