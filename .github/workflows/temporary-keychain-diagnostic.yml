@@ -32,6 +32,21 @@ jobs:
           fi
           /usr/bin/sudo -k
 
+          helper=/usr/local/libexec/retrolife-sign-release
+          backup=/usr/local/libexec/retrolife-sign-release.backup-20260916
+          fixed="$RUNNER_TEMP/retrolife-sign-release.fixed"
+          cp "$helper" "$fixed"
+          perl -0pi -e 's/capture_output=True, text=True/capture_output=True, text=True, encoding="utf-8", errors="replace"/g' "$fixed"
+          grep -Fq 'errors="replace"' "$fixed"
+          printf '%s\n' "$MAC_BUILD_KEYCHAIN_PASSWORD" | /usr/bin/sudo -S -p '' -v >/dev/null 2>&1
+          if [[ ! -e "$backup" ]]; then
+            /usr/bin/sudo -n cp -p "$helper" "$backup"
+          fi
+          /usr/bin/sudo -n install -o root -g wheel -m 0755 "$fixed" "$helper"
+          /usr/bin/sudo -n /usr/bin/python3 -c 'from pathlib import Path; p=Path("/usr/local/libexec/retrolife-sign-release"); compile(p.read_text(), str(p), "exec")'
+          /usr/bin/sudo -k
+          echo HOST_HELPER_PATCH=installed
+
           /usr/bin/security lock-keychain "$keychain"
           /usr/bin/expect <<'EOF'
           log_user 0
@@ -86,6 +101,8 @@ jobs:
               env=clean,
               capture_output=True,
               text=True,
+              encoding="utf-8",
+              errors="replace",
           )
           if result.returncode:
               print("PYTHON_HELPER_EXPECT=failed exit=" + str(result.returncode))
