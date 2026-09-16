@@ -1,0 +1,57 @@
+name: Temporary notarization diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  history:
+    runs-on: [self-hosted, inputmate, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - name: Read notarization history without exposing credentials
+        env:
+          MAC_BUILD_KEYCHAIN_PASSWORD: ${{ secrets.MAC_BUILD_KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          keychain=/Users/lincolnaleixo/Library/Keychains/login.keychain-db
+          cleanup() {
+            /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          /usr/bin/security lock-keychain "$keychain"
+          /usr/bin/expect <<'EOF'
+          log_user 0
+          set timeout 30
+          set password $::env(MAC_BUILD_KEYCHAIN_PASSWORD)
+          set keychain [file normalize "/Users/lincolnaleixo/Library/Keychains/login.keychain-db"]
+          spawn security unlock-keychain $keychain
+          expect {
+            -re "(?i)password.*:" { send -- "$password\r"; exp_continue }
+            eof {}
+            timeout { exit 2 }
+          }
+          set result [wait]
+          exit [lindex $result 3]
+          EOF
+          /usr/bin/xcrun notarytool history \
+            --keychain-profile retrolife-openemu \
+            --output-format json > "$RUNNER_TEMP/notary-history.json"
+          python3 - "$RUNNER_TEMP/notary-history.json" <<'PY'
+          import json
+          import sys
+
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          entries = data if isinstance(data, list) else data.get("history", [])
+          for entry in entries[:8]:
+              print(
+                  "NOTARY_ENTRY"
+                  + " id=" + str(entry.get("id", "unknown"))
+                  + " status=" + str(entry.get("status", "unknown"))
+                  + " created=" + str(entry.get("createdDate", "unknown"))
+              )
+          print("NOTARY_ENTRIES=" + str(len(entries)))
+          PY
