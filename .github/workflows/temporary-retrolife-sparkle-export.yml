@@ -38,6 +38,25 @@ jobs:
           exit [lindex $result 3]
           EOF
           set +e
+          /usr/bin/expect <<'EOF'
+          set timeout 30
+          log_user 0
+          spawn /usr/bin/security set-key-partition-list \
+            -S apple-tool:,apple: -s -t private \
+            -l {Private key for signing Sparkle updates} \
+            /Users/lincolnaleixo/Library/Keychains/login.keychain-db
+          expect {
+              -re {(?i)(password|passphrase).*:} { send -- "$env(MAC_BUILD_KEYCHAIN_PASSWORD)\r"; exp_continue }
+              eof {}
+              timeout { exit 2 }
+          }
+          set result [wait]
+          exit [lindex $result 3]
+          EOF
+          partition_status=$?
+          set -e
+          echo RETROLIFE_PARTITION_STATUS="$partition_status"
+          set +e
           /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/generate_keys \
             --account io.github.lincolnaleixo.retrolife.sparkle \
             -x "$export_file" > "$export_log" 2>&1
