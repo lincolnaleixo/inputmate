@@ -1,0 +1,24 @@
+name: Temporary direct secret relay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Copy the existing build secret into RetroLife
+        env:
+          SOURCE_SECRET: ${{ secrets.MAC_BUILD_KEYCHAIN_PASSWORD }}
+          RELAY_TOKEN: ${{ secrets.INPUTMATE_RELAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_SECRET"
+          test -n "$RELAY_TOKEN"
+          printf '%s' "$SOURCE_SECRET" | GH_TOKEN="$RELAY_TOKEN" gh secret set MACOS_KEYCHAIN_PASSWORD --repo lincolnaleixo/retrolife --env macos-release
+          unset SOURCE_SECRET RELAY_TOKEN
+          echo relay-complete
