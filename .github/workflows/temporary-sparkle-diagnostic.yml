@@ -1,0 +1,72 @@
+name: Temporary Sparkle signing diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sparkle:
+    runs-on: [self-hosted, inputmate, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - name: Run the host Sparkle step against the existing artifact
+        env:
+          MAC_BUILD_KEYCHAIN_PASSWORD: ${{ secrets.MAC_BUILD_KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          keychain=/Users/lincolnaleixo/Library/Keychains/login.keychain-db
+          cleanup() {
+            /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          /usr/bin/security lock-keychain "$keychain"
+          /usr/bin/expect <<'EOF'
+          log_user 0
+          set timeout 30
+          set password $::env(MAC_BUILD_KEYCHAIN_PASSWORD)
+          set keychain [file normalize "/Users/lincolnaleixo/Library/Keychains/login.keychain-db"]
+          spawn security unlock-keychain $keychain
+          expect {
+            -re "(?i)password.*:" { send -- "$password\r"; exp_continue }
+            eof {}
+            timeout { exit 2 }
+          }
+          set result [wait]
+          exit [lindex $result 3]
+          EOF
+          unset MAC_BUILD_KEYCHAIN_PASSWORD
+          python3 - <<'PY'
+          import plistlib
+          import runpy
+          import sys
+          from pathlib import Path
+
+          root = Path("/Users/lincolnaleixo/actions-runner-retrolife/_work/retrolife/retrolife")
+          app = root / "dist/unsigned/RetroLife.app"
+          archive = root / "dist/unsigned/RetroLife-macos-arm64.zip"
+          helper = Path("/usr/local/libexec/retrolife-sign-release")
+          if not app.is_dir() or not archive.is_file():
+              print("SPARKLE_RESULT=missing-artifact")
+              sys.exit(2)
+          data = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+          info = {
+              "version": data["RLReleaseVersion"],
+              "tag": "v" + data["RLReleaseVersion"],
+              "bundleVersion": data["CFBundleVersion"],
+              "shortVersion": data["CFBundleShortVersionString"],
+              "channel": "beta",
+          }
+          module = runpy.run_path(str(helper))
+          try:
+              module["signed_update_metadata"](app, archive, data["SUPublicEDKey"], info)
+          except Exception as error:
+              print("SPARKLE_RESULT=failure")
+              print("SPARKLE_ERROR_TYPE=" + type(error).__name__)
+              print("SPARKLE_ERROR=" + str(error))
+              sys.exit(1)
+          print("SPARKLE_RESULT=success")
+          print("UPDATE_METADATA_PRESENT=" + str((root / "dist/unsigned/retrolife-update.json").is_file()).lower())
+          PY
