@@ -68,9 +68,16 @@ jobs:
           echo DIRECT_EXPECT=success
           /usr/bin/security show-keychain-info "$keychain" >/dev/null
           /usr/bin/security lock-keychain "$keychain"
+          /usr/bin/expect -c 'puts "EXPECT_ARGCOUNT=[llength $argv]"; puts "EXPECT_ARG0=[lindex $argv 0]"' "$keychain"
+          if /usr/bin/security show-keychain-info "$keychain" >/dev/null 2>&1; then
+            echo BEFORE_PYTHON=unlocked
+          else
+            echo BEFORE_PYTHON=locked
+          fi
 
           python3 - <<'PY'
           import os
+          import re
           import subprocess
           import sys
 
@@ -94,6 +101,7 @@ jobs:
               timeout { exit 2 }
           }
           set result [wait]
+          puts "EXPECT_CHILD_EXIT=[lindex $result 3]"
           exit [lindex $result 3]
           '''
           result = subprocess.run(
@@ -106,8 +114,14 @@ jobs:
               errors="replace",
           )
           if result.returncode:
+              match = re.search(r"EXPECT_CHILD_EXIT=([0-9]+)", result.stdout or "")
+              print("PYTHON_CHILD_EXIT=" + (match.group(1) if match else "missing"))
+              print("PYTHON_RC=" + str(result.returncode))
               print("PYTHON_HELPER_EXPECT=failed exit=" + str(result.returncode))
               sys.exit(1)
+          match = re.search(r"EXPECT_CHILD_EXIT=([0-9]+)", result.stdout or "")
+          print("PYTHON_CHILD_EXIT=" + (match.group(1) if match else "missing"))
+          print("PYTHON_RC=" + str(result.returncode))
           print("PYTHON_HELPER_EXPECT=success")
           PY
           /usr/bin/security show-keychain-info "$keychain" >/dev/null
