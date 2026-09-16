@@ -37,6 +37,7 @@ jobs:
           set result [wait]
           exit [lindex $result 3]
           EOF
+          export MACOS_KEYCHAIN_PASSWORD="$MAC_BUILD_KEYCHAIN_PASSWORD"
           unset MAC_BUILD_KEYCHAIN_PASSWORD
           python3 - <<'PY'
           import plistlib
@@ -60,13 +61,23 @@ jobs:
               "channel": "beta",
           }
           module = runpy.run_path(str(helper))
+          configured = False
           try:
+              original_default, original_keychains = module["keychain_state"]()
+              module["ORIGINAL_DEFAULT"] = original_default
+              module["ORIGINAL_KEYCHAINS"] = original_keychains
+              configured = True
+              module["unlock_keychain"]()
+              module["set_signing_keychain"]()
               module["signed_update_metadata"](app, archive, data["SUPublicEDKey"], info)
           except Exception as error:
               print("SPARKLE_RESULT=failure")
               print("SPARKLE_ERROR_TYPE=" + type(error).__name__)
               print("SPARKLE_ERROR=" + str(error))
               sys.exit(1)
+          finally:
+              if configured:
+                  module["restore_keychain"]()
           print("SPARKLE_RESULT=success")
           print("UPDATE_METADATA_PRESENT=" + str((root / "dist/unsigned/retrolife-update.json").is_file()).lower())
           PY
