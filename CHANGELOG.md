@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/lincolnaleixo/inputmate/compare/v0.4.0...v0.4.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* authorize protected keychain item ([db67279](https://github.com/lincolnaleixo/inputmate/commit/db672792110444ff4afaa0b99a2664d3e0015eaa))
+* read Sparkle generic password service ([c8a6ad7](https://github.com/lincolnaleixo/inputmate/commit/c8a6ad7601c7a4ac121cdb38d06aa988755b0048))
+
 ## [0.4.0](https://github.com/lincolnaleixo/inputmate/compare/v0.3.0...v0.4.0) (2026-09-01)
 
 
