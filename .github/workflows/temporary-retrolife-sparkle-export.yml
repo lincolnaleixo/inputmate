@@ -21,7 +21,8 @@ jobs:
           set -euo pipefail
           keychain=/Users/lincolnaleixo/Library/Keychains/login.keychain-db
           export_file=$(/usr/bin/mktemp /tmp/retrolife-sparkle-private.XXXXXX)
-          trap '/usr/bin/rm -f "$export_file"; /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true; unset MAC_BUILD_KEYCHAIN_PASSWORD RELAY_TOKEN' EXIT
+          export_log=$(/usr/bin/mktemp /tmp/retrolife-sparkle-export-log.XXXXXX)
+          trap '/bin/rm -f "$export_file" "$export_log"; /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true; unset MAC_BUILD_KEYCHAIN_PASSWORD RELAY_TOKEN' EXIT
           /usr/bin/expect <<'EOF'
           set timeout 30
           log_user 0
@@ -34,10 +35,21 @@ jobs:
           set result [wait]
           exit [lindex $result 3]
           EOF
+          set +e
           /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/generate_keys \
             --account io.github.lincolnaleixo.retrolife.sparkle \
-            -x "$export_file" >/dev/null 2>&1
-          test -s "$export_file"
+            -x "$export_file" > "$export_log" 2>&1
+          export_status=$?
+          set -e
+          export_bytes=$(wc -c < "$export_file" | tr -d ' ')
+          export_log_bytes=$(wc -c < "$export_log" | tr -d ' ')
+          echo RETROLIFE_EXPORT_STATUS="$export_status"
+          echo RETROLIFE_EXPORT_BYTES="$export_bytes"
+          echo RETROLIFE_EXPORT_LOG_BYTES="$export_log_bytes"
+          if [ "$export_status" -ne 0 ]; then
+            exit 0
+          fi
+          test "$export_bytes" -gt 0
           /usr/bin/python3 - "$export_file" "$TARGET_PUBLIC_KEY" <<'PY'
           import base64
           import sys
