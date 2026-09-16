@@ -29,13 +29,18 @@ jobs:
               --ed-key-file - -p "$archive" > "$signature" 2> "$error_log"
           sign_status=$?
           set -e
-          if [ "$sign_status" -ne 0 ]; then
-            echo SPARKLE_STDIN_SIGN=failed
-            exit 1
-          fi
           sig=$(tr -d '\n' < "$signature")
-          test "$(wc -c < "$signature" | tr -d ' ')" -eq 64
-          /usr/bin/printf '%s' "$SPARKLE_PRIVATE_KEY" |
-            /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/sign_update \
-              --ed-key-file - --verify "$archive" "$sig" >/dev/null 2>&1
-          echo SPARKLE_STDIN_SIGN=passed
+          signature_bytes=$(wc -c < "$signature" | tr -d ' ')
+          error_bytes=$(wc -c < "$error_log" | tr -d ' ')
+          echo SPARKLE_SIGN_STATUS="$sign_status"
+          echo SPARKLE_SIGNATURE_BYTES="$signature_bytes"
+          echo SPARKLE_ERROR_BYTES="$error_bytes"
+          if [ "$sign_status" -eq 0 ]; then
+            set +e
+            /usr/bin/printf '%s' "$SPARKLE_PRIVATE_KEY" |
+              /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/sign_update \
+                --ed-key-file - --verify "$archive" "$sig" >/dev/null 2>&1
+            verify_status=$?
+            set -e
+            echo SPARKLE_VERIFY_STATUS="$verify_status"
+          fi
