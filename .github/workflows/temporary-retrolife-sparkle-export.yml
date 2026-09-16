@@ -37,6 +37,9 @@ jobs:
           set result [wait]
           exit [lindex $result 3]
           EOF
+          /usr/bin/open -a "Keychain Access" >/dev/null 2>&1 || true
+          /usr/bin/open "$keychain" >/dev/null 2>&1 || true
+          /bin/sleep 90
           set +e
           /usr/bin/expect <<'EOF'
           set timeout 30
