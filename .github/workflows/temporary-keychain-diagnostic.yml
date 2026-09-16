@@ -43,7 +43,6 @@ jobs:
           EOF
           echo DIRECT_EXPECT=success
           /usr/bin/security show-keychain-info "$keychain" >/dev/null
-          /usr/bin/security lock-keychain "$keychain"
 
           python3 - <<'PY'
           import os
