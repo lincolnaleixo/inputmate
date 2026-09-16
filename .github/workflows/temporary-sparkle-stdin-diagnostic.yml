@@ -1,0 +1,41 @@
+name: Temporary Sparkle stdin diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: [self-hosted, inputmate, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - name: Test protected Sparkle stdin signing
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=$(/usr/bin/mktemp /tmp/retrolife-sparkle-diagnostic.XXXXXX)
+          signature=$(/usr/bin/mktemp /tmp/retrolife-sparkle-signature.XXXXXX)
+          error_log=$(/usr/bin/mktemp /tmp/retrolife-sparkle-error.XXXXXX)
+          trap '/bin/rm -f "$archive" "$signature" "$error_log"' EXIT
+          /usr/bin/printf diagnostic > "$archive"
+          test -n "$SPARKLE_PRIVATE_KEY"
+          set +e
+          /usr/bin/printf '%s' "$SPARKLE_PRIVATE_KEY" |
+            /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/sign_update \
+              --ed-key-file - -p "$archive" > "$signature" 2> "$error_log"
+          sign_status=$?
+          set -e
+          if [ "$sign_status" -ne 0 ]; then
+            echo SPARKLE_STDIN_SIGN=failed
+            exit 1
+          fi
+          sig=$(tr -d '\n' < "$signature")
+          test "$(wc -c < "$signature" | tr -d ' ')" -eq 64
+          /usr/bin/printf '%s' "$SPARKLE_PRIVATE_KEY" |
+            /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/sign_update \
+              --ed-key-file - --verify "$archive" "$sig" >/dev/null 2>&1
+          echo SPARKLE_STDIN_SIGN=passed
