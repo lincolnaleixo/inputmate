@@ -42,6 +42,7 @@ jobs:
           python3 - <<'PY'
           import plistlib
           import runpy
+          import shutil
           import subprocess
           import sys
           from pathlib import Path
@@ -79,22 +80,32 @@ jobs:
               generated = generate.stdout.decode("utf-8", "replace").strip()
               print("GENERATE_KEYS_RC=" + str(generate.returncode))
               print("GENERATE_KEY_MATCH=" + ("yes" if generated == data["SUPublicEDKey"] else "no"))
-              sign = subprocess.run(
-                  [str(sdk / "bin/sign_update"), "--account", module["SPARKLE_ACCOUNT"], "-p", str(archive)],
-                  cwd=module["ROOT"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+              sign_update = sdk / "bin/sign_update"
+              variants = [
+                  ("PRINT", [str(sign_update), "--account", module["SPARKLE_ACCOUNT"], "-p", str(archive)]),
+                  ("PRINT_OPTION_LAST", [str(sign_update), "--account", module["SPARKLE_ACCOUNT"], str(archive), "-p"]),
+                  ("NO_PRINT", [str(sign_update), "--account", module["SPARKLE_ACCOUNT"], str(root / "dist/unsigned/retrolife-sparkle-copy.zip")]),
+              ]
+              shutil.copy2(archive, root / "dist/unsigned/retrolife-sparkle-copy.zip")
+              results = {}
+              for label, arguments in variants:
+                  result = subprocess.run(
+                      arguments, cwd=module["ROOT"], env=env,
+                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                  )
+                  results[label] = result
+                  print("SIGN_" + label + "_RC=" + str(result.returncode))
+                  print("SIGN_" + label + "_STDOUT_BYTES=" + str(len(result.stdout)))
+                  print("SIGN_" + label + "_STDERR_BYTES=" + str(len(result.stderr)))
+              signature = results["PRINT"].stdout.decode("ascii", "replace").strip()
+              verify = subprocess.run(
+                  [str(sign_update), "--account", module["SPARKLE_ACCOUNT"], "--verify", str(archive), signature],
+                  cwd=module["ROOT"], env=env,
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
               )
-              stderr = sign.stderr.decode("utf-8", "replace").lower()
-              print("SIGN_UPDATE_RC=" + str(sign.returncode))
-              print("SIGN_STDOUT_BYTES=" + str(len(sign.stdout)))
-              print("SIGN_STDERR_BYTES=" + str(len(sign.stderr)))
-              for label, pattern in (
-                  ("keychain", "keychain"), ("permission", "permission"),
-                  ("access", "access"), ("interaction", "interaction"),
-                  ("denied", "denied"), ("account", "account"),
-                  ("private-key", "private key"), ("not-found", "not found"),
-              ):
-                  print("SIGN_ERROR_" + label.upper().replace("-", "_") + "=" + ("yes" if pattern in stderr else "no"))
-              if sign.returncode:
+              print("SIGN_VERIFY_RC=" + str(verify.returncode))
+              print("SIGN_VERIFY_STDERR_BYTES=" + str(len(verify.stderr)))
+              if any(result.returncode for result in results.values()) or verify.returncode:
                   sys.exit(1)
           finally:
               if configured:
