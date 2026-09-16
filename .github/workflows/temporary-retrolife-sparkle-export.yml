@@ -39,7 +39,30 @@ jobs:
           EOF
           /usr/bin/open -a "Keychain Access" >/dev/null 2>&1 || true
           /usr/bin/open "$keychain" >/dev/null 2>&1 || true
-          /bin/sleep 90
+          /bin/sleep 2
+          /usr/bin/osascript <<'APPLESCRIPT'
+          tell application "System Events"
+            tell process "Keychain Access"
+              set frontmost to true
+              tell window 1
+                click checkbox "Keys" of group 2
+                delay 1
+                set value of text field 1 of group 1 of toolbar 1 to "Private key for signing Sparkle updates"
+                delay 1
+                set matching_rows to 0
+                repeat with candidate_row in (every row of outline 1 of scroll area 1 of group 2 of splitter group 1 of group 1)
+                  set row_text to ""
+                  try
+                    set row_text to (value of every text field of candidate_row) as text
+                  end try
+                  if row_text contains "Private key for signing Sparkle updates" then set matching_rows to matching_rows + 1
+                end repeat
+                return "RETROLIFE_GUI_MATCHING_ROWS=" & matching_rows
+              end tell
+            end tell
+          end tell
+          APPLESCRIPT
+          /bin/sleep 3
           set +e
           /usr/bin/expect <<'EOF'
           set timeout 30
