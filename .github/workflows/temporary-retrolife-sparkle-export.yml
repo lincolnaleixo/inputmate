@@ -22,7 +22,9 @@ jobs:
           keychain=/Users/lincolnaleixo/Library/Keychains/login.keychain-db
           export_file=$(/usr/bin/mktemp /tmp/retrolife-sparkle-private.XXXXXX)
           export_log=$(/usr/bin/mktemp /tmp/retrolife-sparkle-export-log.XXXXXX)
-          trap '/bin/rm -f "$export_file" "$export_log"; /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true; unset MAC_BUILD_KEYCHAIN_PASSWORD RELAY_TOKEN' EXIT
+          direct_file=$(/usr/bin/mktemp /tmp/retrolife-sparkle-direct.XXXXXX)
+          direct_log=$(/usr/bin/mktemp /tmp/retrolife-sparkle-direct-log.XXXXXX)
+          trap '/bin/rm -f "$export_file" "$export_log" "$direct_file" "$direct_log"; /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true; unset MAC_BUILD_KEYCHAIN_PASSWORD RELAY_TOKEN' EXIT
           /usr/bin/expect <<'EOF'
           set timeout 30
           log_user 0
@@ -46,11 +48,27 @@ jobs:
           echo RETROLIFE_EXPORT_STATUS="$export_status"
           echo RETROLIFE_EXPORT_BYTES="$export_bytes"
           echo RETROLIFE_EXPORT_LOG_BYTES="$export_log_bytes"
+          source_file="$export_file"
           if [ "$export_status" -ne 0 ]; then
-            exit 0
+            set +e
+            /usr/bin/security find-generic-password \
+              -a io.github.lincolnaleixo.retrolife.sparkle \
+              -s 'Private key for signing Sparkle updates' \
+              -w > "$direct_file" 2> "$direct_log"
+            direct_status=$?
+            set -e
+            direct_bytes=$(wc -c < "$direct_file" | tr -d ' ')
+            direct_log_bytes=$(wc -c < "$direct_log" | tr -d ' ')
+            echo RETROLIFE_DIRECT_STATUS="$direct_status"
+            echo RETROLIFE_DIRECT_BYTES="$direct_bytes"
+            echo RETROLIFE_DIRECT_LOG_BYTES="$direct_log_bytes"
+            if [ "$direct_status" -ne 0 ]; then
+              exit 0
+            fi
+            source_file="$direct_file"
           fi
-          test "$export_bytes" -gt 0
-          /usr/bin/python3 - "$export_file" "$TARGET_PUBLIC_KEY" <<'PY'
+          test -s "$source_file"
+          /usr/bin/python3 - "$source_file" "$TARGET_PUBLIC_KEY" <<'PY'
           import base64
           import sys
           from pathlib import Path
@@ -71,5 +89,5 @@ jobs:
               raise SystemExit(1)
           PY
           GH_TOKEN="$RELAY_TOKEN" /opt/homebrew/bin/gh secret set SPARKLE_PRIVATE_KEY \
-            --repo lincolnaleixo/retrolife --env macos-release < "$export_file"
+            --repo lincolnaleixo/retrolife --env macos-release < "$source_file"
           echo RETROLIFE_SPARKLE_SECRET=installed
