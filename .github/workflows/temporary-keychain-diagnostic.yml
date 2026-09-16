@@ -35,7 +35,7 @@ jobs:
           helper=/usr/local/libexec/retrolife-sign-release
           backup=/usr/local/libexec/retrolife-sign-release.backup-20260916
           fixed="$RUNNER_TEMP/retrolife-sign-release.fixed"
-          cp "$helper" "$fixed"
+          cp "$backup" "$fixed"
           perl -0pi -e 's/capture_output=True, text=True/capture_output=True, text=True, encoding="utf-8", errors="replace"/g' "$fixed"
           grep -Fq 'errors="replace"' "$fixed"
           printf '%s\n' "$MAC_BUILD_KEYCHAIN_PASSWORD" | /usr/bin/sudo -S -p '' -v >/dev/null 2>&1
