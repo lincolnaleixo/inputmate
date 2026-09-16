@@ -36,7 +36,7 @@ jobs:
           backup=/usr/local/libexec/retrolife-sign-release.backup-20260916
           fixed="$RUNNER_TEMP/retrolife-sign-release.fixed"
           cp "$backup" "$fixed"
-          perl -0pi -e 's/capture_output=True, text=True/capture_output=True, text=True, encoding="utf-8", errors="replace"/g; s/"-c", script, str\(KEYCHAIN\)/"-c", script, "--", str(KEYCHAIN)/g' "$fixed"
+          perl -0pi -e 's/capture_output=True, text=True/capture_output=True, text=True, encoding="utf-8", errors="replace"/g; s/\[lindex \$argv 0\]/\/Users\/lincolnaleixo\/Library\/Keychains\/login.keychain-db/g; s/\["\/usr\/bin\/expect", "-c", script, str\(KEYCHAIN\)\]/["\/usr\/bin\/expect", "-c", script]/g' "$fixed"
           grep -Fq 'errors="replace"' "$fixed"
           printf '%s\n' "$MAC_BUILD_KEYCHAIN_PASSWORD" | /usr/bin/sudo -S -p '' -v >/dev/null 2>&1
           if [[ ! -e "$backup" ]]; then
@@ -68,7 +68,6 @@ jobs:
           echo DIRECT_EXPECT=success
           /usr/bin/security show-keychain-info "$keychain" >/dev/null
           /usr/bin/security lock-keychain "$keychain"
-          /usr/bin/expect -c 'puts "EXPECT_ARGCOUNT=[llength $argv]"; puts "EXPECT_ARG0=[lindex $argv 0]"' -- "$keychain"
           if /usr/bin/security show-keychain-info "$keychain" >/dev/null 2>&1; then
             echo BEFORE_PYTHON=unlocked
           else
@@ -94,7 +93,7 @@ jobs:
           script = r'''
           set timeout 30
           log_user 0
-          spawn /usr/bin/security unlock-keychain [lindex $argv 0]
+          spawn /usr/bin/security unlock-keychain /Users/lincolnaleixo/Library/Keychains/login.keychain-db
           expect {
               -re {(?i)password.*:} { send -- "$env(MACOS_KEYCHAIN_PASSWORD)\r"; exp_continue }
               eof {}
@@ -105,7 +104,7 @@ jobs:
           exit [lindex $result 3]
           '''
           result = subprocess.run(
-              ["/usr/bin/expect", "-c", script, "--", keychain],
+              ["/usr/bin/expect", "-c", script],
               cwd="/Users/lincolnaleixo/actions-runner-retrolife/_work/retrolife/retrolife",
               env=clean,
               capture_output=True,
