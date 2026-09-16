@@ -23,6 +23,15 @@ jobs:
           }
           trap cleanup EXIT
 
+          /usr/bin/sudo -k
+          if printf '%s\n' "$MAC_BUILD_KEYCHAIN_PASSWORD" | /usr/bin/sudo -S -k -p '' -v >/dev/null 2>&1; then
+            echo SUDO_PASSWORD=accepted
+          else
+            echo SUDO_PASSWORD=rejected
+            exit 2
+          fi
+          /usr/bin/sudo -k
+
           /usr/bin/security lock-keychain "$keychain"
           /usr/bin/expect <<'EOF'
           log_user 0
