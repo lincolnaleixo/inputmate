@@ -42,6 +42,7 @@ jobs:
           python3 - <<'PY'
           import plistlib
           import runpy
+          import subprocess
           import sys
           from pathlib import Path
 
@@ -69,15 +70,34 @@ jobs:
               configured = True
               module["unlock_keychain"]()
               module["set_signing_keychain"]()
-              module["signed_update_metadata"](app, archive, data["SUPublicEDKey"], info)
-          except Exception as error:
-              print("SPARKLE_RESULT=failure")
-              print("SPARKLE_ERROR_TYPE=" + type(error).__name__)
-              print("SPARKLE_ERROR=" + str(error))
-              sys.exit(1)
+              sdk = module["SPARKLE_SDK"]
+              env = module["CLEAN_ENV"]
+              generate = subprocess.run(
+                  [str(sdk / "bin/generate_keys"), "--account", module["SPARKLE_ACCOUNT"], "-p"],
+                  cwd=module["ROOT"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+              )
+              generated = generate.stdout.decode("utf-8", "replace").strip()
+              print("GENERATE_KEYS_RC=" + str(generate.returncode))
+              print("GENERATE_KEY_MATCH=" + ("yes" if generated == data["SUPublicEDKey"] else "no"))
+              sign = subprocess.run(
+                  [str(sdk / "bin/sign_update"), "--account", module["SPARKLE_ACCOUNT"], "-p", str(archive)],
+                  cwd=module["ROOT"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+              )
+              stderr = sign.stderr.decode("utf-8", "replace").lower()
+              print("SIGN_UPDATE_RC=" + str(sign.returncode))
+              print("SIGN_STDOUT_BYTES=" + str(len(sign.stdout)))
+              print("SIGN_STDERR_BYTES=" + str(len(sign.stderr)))
+              for label, pattern in (
+                  ("keychain", "keychain"), ("permission", "permission"),
+                  ("access", "access"), ("interaction", "interaction"),
+                  ("denied", "denied"), ("account", "account"),
+                  ("private-key", "private key"), ("not-found", "not found"),
+              ):
+                  print("SIGN_ERROR_" + label.upper().replace("-", "_") + "=" + ("yes" if pattern in stderr else "no"))
+              if sign.returncode:
+                  sys.exit(1)
           finally:
               if configured:
                   module["restore_keychain"]()
           print("SPARKLE_RESULT=success")
-          print("UPDATE_METADATA_PRESENT=" + str((root / "dist/unsigned/retrolife-update.json").is_file()).lower())
           PY
