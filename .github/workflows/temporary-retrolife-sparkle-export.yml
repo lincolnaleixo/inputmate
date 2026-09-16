@@ -25,37 +25,39 @@ jobs:
           direct_file=$(/usr/bin/mktemp /tmp/retrolife-sparkle-direct.XXXXXX)
           direct_log=$(/usr/bin/mktemp /tmp/retrolife-sparkle-direct-log.XXXXXX)
           trap '/bin/rm -f "$export_file" "$export_log" "$direct_file" "$direct_log"; /usr/bin/security lock-keychain "$keychain" >/dev/null 2>&1 || true; unset MAC_BUILD_KEYCHAIN_PASSWORD RELAY_TOKEN' EXIT
-          /usr/bin/expect <<'EOF'
-          set timeout 30
-          log_user 0
-          spawn /usr/bin/security unlock-keychain /Users/lincolnaleixo/Library/Keychains/login.keychain-db
-          expect {
-              -re {(?i)password.*:} { send -- "$env(MAC_BUILD_KEYCHAIN_PASSWORD)\r"; exp_continue }
-              eof {}
-              timeout { exit 2 }
-          }
-          set result [wait]
-          exit [lindex $result 3]
-          EOF
-          set +e
-          /usr/bin/expect <<'EOF'
-          set timeout 30
-          log_user 0
-          spawn /usr/bin/security set-key-partition-list \
-            -S apple-tool:,apple: -s -t private \
-            -l {Private key for signing Sparkle updates} \
-            /Users/lincolnaleixo/Library/Keychains/login.keychain-db
-          expect {
-              -re {(?i)(password|passphrase).*:} { send -- "$env(MAC_BUILD_KEYCHAIN_PASSWORD)\r"; exp_continue }
-              eof {}
-              timeout { exit 2 }
-          }
-          set result [wait]
-          exit [lindex $result 3]
-          EOF
-          partition_status=$?
-          set -e
-          echo RETROLIFE_PARTITION_STATUS="$partition_status"
+          /usr/bin/python3 - <<'PY'
+          import subprocess
+          import sys
+
+          script = '''
+          tell application "System Events"
+            tell process "SecurityAgent"
+              if (count of windows) is 0 then error "no authorization dialog"
+              set password_value to do shell script "/usr/bin/printenv MAC_BUILD_KEYCHAIN_PASSWORD"
+              set value of text field 2 of window 1 to password_value
+              click button "Modify Keychain" of window 1
+              return "RETROLIFE_GUI_AUTH=approved"
+            end tell
+          end tell
+          '''
+          try:
+              result = subprocess.run(
+                  ["/usr/bin/osascript"],
+                  input=script,
+                  text=True,
+                  capture_output=True,
+                  timeout=20,
+                  check=False,
+              )
+          except subprocess.TimeoutExpired:
+              print("RETROLIFE_GUI_AUTH=timeout")
+              raise SystemExit(2)
+          if result.returncode != 0:
+              print("RETROLIFE_GUI_AUTH=failed")
+              raise SystemExit(1)
+          sys.stdout.write(result.stdout)
+          PY
+          /bin/sleep 2
           set +e
           /usr/local/libexec/retrolife-signing/Sparkle-2.10.0/bin/generate_keys \
             --account io.github.lincolnaleixo.retrolife.sparkle \
