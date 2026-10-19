@@ -85,6 +85,20 @@ Choose **Manage Shortcuts…** from the menu bar to add or edit shortcuts. A sho
 
 Shortcuts can be global or limited to one or more application bundle identifiers. InputMate detects conflicts between enabled shortcuts whose scopes overlap.
 
+## Settings sync between Macs
+
+InputMate can keep the toggles, keyboard shortcuts and AI provider/model the same on several Macs. API keys never
+travel; they stay in each Mac's Keychain. Sync is off until a server URL is set:
+
+```sh
+defaults write com.robot.InputMate settingsSyncURL "https://<your-host>/settings"
+```
+
+The server is `server/inputmate-sync.py` (Python standard library, one JSON file, no credentials: put it behind a
+private network such as a tailnet). The app uploads a change two seconds after it is made and checks the server every
+30 seconds; when two Macs edit at once the later upload wins. Turn sync off with
+`defaults delete com.robot.InputMate settingsSyncURL`.
+
 ## Build from source
 
 ```sh

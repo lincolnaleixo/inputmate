@@ -1,0 +1,17 @@
+[Unit]
+Description=InputMate settings sync
+After=network.target
+
+[Service]
+Environment=INPUTMATE_SYNC_HOST=10.10.10.232
+ExecStart=/usr/bin/python3 /opt/inputmate-sync/inputmate-sync.py
+DynamicUser=yes
+StateDirectory=inputmate-sync
+Environment=INPUTMATE_SYNC_DIR=/var/lib/inputmate-sync
+Restart=always
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -18,7 +18,54 @@ struct InputMateTests {
     testSpanishPunctuationPolicy()
     testShortcutScopePolicy()
     testMissingScopeDecodesAsGlobal()
+    testSettingsSnapshotRoundTrip()
     print("All InputMate tests passed.")
+  }
+
+  private static func testSettingsSnapshotRoundTrip() {
+    let source = UserDefaults(suiteName: "InputMateTests.snapshot.source")!
+    let target = UserDefaults(suiteName: "InputMateTests.snapshot.target")!
+    source.removePersistentDomain(forName: "InputMateTests.snapshot.source")
+    target.removePersistentDomain(forName: "InputMateTests.snapshot.target")
+
+    AIConfigurationStore.setProvider(.groq, in: source)
+    AIConfigurationStore.setModel("openai/gpt-oss-20b", for: .groq, in: source)
+    let snapshot = SettingsSnapshot(
+      reversesMouseWheel: true,
+      handlesKeyboardShortcuts: false,
+      shortcuts: "[]",
+      defaults: source
+    )
+    expect(snapshot.models == ["groq": "openai/gpt-oss-20b"], "Only non-default models travel")
+
+    let decoded = try! JSONDecoder().decode(
+      SettingsSnapshot.self,
+      from: JSONEncoder().encode(snapshot)
+    )
+    expect(decoded == snapshot, "A snapshot survives JSON encoding")
+
+    let empty = try! JSONDecoder().decode(
+      SettingsSyncDocument.self,
+      from: Data(#"{"rev": 0, "data": null}"#.utf8)
+    )
+    expect(empty.rev == 0 && empty.data == nil, "An empty server document decodes")
+    let stored = try! JSONDecoder().decode(
+      SettingsSyncDocument.self,
+      from: JSONEncoder().encode(SettingsSyncDocument(rev: 3, data: snapshot))
+    )
+    expect(stored.rev == 3 && stored.data == snapshot, "A stored server document decodes")
+
+    AIConfigurationStore.setModel("stale-model", for: .cerebras, in: target)
+    decoded.applyAIConfiguration(to: target)
+    expect(AIConfigurationStore.provider(from: target) == .groq, "Provider is applied")
+    expect(
+      AIConfigurationStore.model(for: .groq, from: target) == "openai/gpt-oss-20b",
+      "Chosen model is applied"
+    )
+    expect(
+      AIConfigurationStore.model(for: .cerebras, from: target) == AIProvider.cerebras.defaultModel,
+      "A model absent from the snapshot returns to the default"
+    )
   }
 
   private static func testScrollClassification() {
