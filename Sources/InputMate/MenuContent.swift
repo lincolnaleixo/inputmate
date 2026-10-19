@@ -55,6 +55,10 @@ struct MenuContent: View {
       Text(statusMessage)
     }
 
+    if let syncStatus = model.settingsSyncStatus {
+      Label(syncStatus, systemImage: "arrow.triangle.2.circlepath")
+    }
+
     Divider()
 
     Button("Manage Shortcuts…") {

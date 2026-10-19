@@ -21,6 +21,7 @@ final class AppModel: ObservableObject {
     static let diagnosticCapsLockHyperMapping = "diagnosticCapsLockHyperMapping"
     static let diagnosticTapState = "diagnosticTapState"
     static let legacyMouseReversal = "isEnabled"
+    static let settingsSyncRevision = "settingsSyncRevision"
   }
 
   @Published private(set) var reversesMouseWheel: Bool
@@ -32,10 +33,13 @@ final class AppModel: ObservableObject {
   @Published private(set) var hasAccessibilityAccess = false
   @Published private(set) var opensAtLogin = false
   @Published private(set) var statusMessage: String?
+  @Published private(set) var settingsSyncStatus: String?
 
   private let defaults: UserDefaults
   private let inputEventTap = InputEventTap()
   private let capsLockHyperMapper = CapsLockHyperMapper()
+  private var hasUnsyncedChanges = false
+  private var pushTask: Task<Void, Never>?
   private static let currentTextTransformationShortcutVersion = 2
   private static let currentAppScopedShortcutVersion = 1
 
@@ -79,6 +83,9 @@ final class AppModel: ObservableObject {
     Task { [weak self] in
       await self?.monitorAccessibility()
     }
+    Task { [weak self] in
+      await self?.monitorSettingsSync()
+    }
   }
 
   var requiresAccessibility: Bool {
@@ -103,12 +110,14 @@ final class AppModel: ObservableObject {
   func setReversesMouseWheel(_ enabled: Bool) {
     reversesMouseWheel = enabled
     defaults.set(enabled, forKey: DefaultsKey.reversesMouseWheel)
+    markSettingsChanged()
     applyFeatureChange()
   }
 
   func setHandlesKeyboardShortcuts(_ enabled: Bool) {
     handlesKeyboardShortcuts = enabled
     defaults.set(enabled, forKey: DefaultsKey.handlesKeyboardShortcuts)
+    markSettingsChanged()
     applyFeatureChange()
   }
 
@@ -174,6 +183,7 @@ final class AppModel: ObservableObject {
     textTransformationModel = AIConfigurationStore.model(for: provider, from: defaults)
     hasTextTransformationAPIKey = Self.hasAPIKey(for: provider)
     statusMessage = nil
+    markSettingsChanged()
   }
 
   @discardableResult
@@ -194,6 +204,7 @@ final class AppModel: ObservableObject {
       from: defaults
     )
     statusMessage = nil
+    markSettingsChanged()
     return true
   }
 
@@ -201,6 +212,7 @@ final class AppModel: ObservableObject {
     AIConfigurationStore.resetModel(for: textTransformationProvider, in: defaults)
     textTransformationModel = textTransformationProvider.defaultModel
     statusMessage = nil
+    markSettingsChanged()
   }
 
   @discardableResult
@@ -304,6 +316,91 @@ final class AppModel: ObservableObject {
     }
   }
 
+  // MARK: Settings sync
+
+  private var syncedRevision: Int {
+    get { defaults.integer(forKey: DefaultsKey.settingsSyncRevision) }
+    set { defaults.set(newValue, forKey: DefaultsKey.settingsSyncRevision) }
+  }
+
+  private func currentSnapshot() -> SettingsSnapshot {
+    SettingsSnapshot(
+      reversesMouseWheel: reversesMouseWheel,
+      handlesKeyboardShortcuts: handlesKeyboardShortcuts,
+      shortcuts: String(
+        decoding: defaults.data(forKey: DefaultsKey.keyboardShortcutDefinitions) ?? Data(),
+        as: UTF8.self
+      ),
+      defaults: defaults
+    )
+  }
+
+  /// Pushes shortly after the last change, so a burst of edits is one upload.
+  private func markSettingsChanged() {
+    guard SettingsSyncClient(defaults: defaults) != nil else { return }
+    hasUnsyncedChanges = true
+    pushTask?.cancel()
+    pushTask = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(2))
+      guard !Task.isCancelled else { return }
+      await self?.syncSettings()
+    }
+  }
+
+  private func monitorSettingsSync() async {
+    while !Task.isCancelled {
+      await syncSettings()
+      try? await Task.sleep(for: .seconds(30))
+    }
+  }
+
+  /// Local changes go up first; otherwise a newer server revision is applied.
+  /// When two Macs edit at once the later upload wins.
+  private func syncSettings() async {
+    guard let client = SettingsSyncClient(defaults: defaults) else {
+      settingsSyncStatus = nil
+      return
+    }
+    do {
+      var document = try await client.fetch()
+      if hasUnsyncedChanges || document.data == nil {
+        let result = try await client.push(currentSnapshot(), revision: document.rev)
+        document = result.document
+        if !result.stored {
+          document = try await client.push(currentSnapshot(), revision: document.rev).document
+        }
+        hasUnsyncedChanges = false
+        syncedRevision = document.rev
+      } else if document.rev != syncedRevision {
+        if let remote = document.data, remote != currentSnapshot() {
+          applyRemoteSnapshot(remote)
+        }
+        syncedRevision = document.rev
+      }
+      settingsSyncStatus = "Settings synced"
+    } catch {
+      settingsSyncStatus = "Settings sync unreachable"
+    }
+  }
+
+  private func applyRemoteSnapshot(_ snapshot: SettingsSnapshot) {
+    defaults.set(snapshot.reversesMouseWheel, forKey: DefaultsKey.reversesMouseWheel)
+    defaults.set(snapshot.handlesKeyboardShortcuts, forKey: DefaultsKey.handlesKeyboardShortcuts)
+    if !snapshot.shortcuts.isEmpty {
+      defaults.set(Data(snapshot.shortcuts.utf8), forKey: DefaultsKey.keyboardShortcutDefinitions)
+    }
+    snapshot.applyAIConfiguration(to: defaults)
+
+    reversesMouseWheel = snapshot.reversesMouseWheel
+    handlesKeyboardShortcuts = snapshot.handlesKeyboardShortcuts
+    shortcutDefinitions = Self.loadShortcutDefinitions(from: defaults)
+    let aiConfiguration = AIConfigurationStore.configuration(from: defaults)
+    textTransformationProvider = aiConfiguration.provider
+    textTransformationModel = aiConfiguration.model
+    hasTextTransformationAPIKey = Self.hasAPIKey(for: aiConfiguration.provider)
+    applyFeatureChange()
+  }
+
   private func applyFeatureChange() {
     statusMessage = nil
     configureEventTap()
@@ -325,6 +422,7 @@ final class AppModel: ObservableObject {
       defaults.set(data, forKey: DefaultsKey.keyboardShortcutDefinitions)
       inputEventTap.updateKeyboardShortcuts(shortcutDefinitions)
       statusMessage = nil
+      markSettingsChanged()
     } catch {
       statusMessage = "Could not save keyboard shortcuts: \(error.localizedDescription)"
     }
