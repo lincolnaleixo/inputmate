@@ -33,6 +33,7 @@ Do not use `Release-As` to reuse or replace an existing version.
 5. Merge the release pull request only when that exact version is ready for users.
 6. Release Please creates tag `vX.Y.Z` and the GitHub Release, then calls the trusted macOS release workflow.
 7. The release workflow signs, notarizes, staples, packages, signs the Sparkle update, publishes the assets, downloads them again, and verifies them independently.
+8. A release is done when a running Mac reports the new `CFBundleShortVersionString` (`defaults read /Applications/InputMate.app/Contents/Info CFBundleShortVersionString`), not when the assets are published. InputMate is a menu bar app that never quits, so the updater delegate installs a ready update immediately; a Mac still on the old version a day later means a staged update is stuck (look for a running `Sparkle.framework/.../Autoupdate`).
 
 There is no release calendar enforced by automation. Merge the release pull request when the accumulated changes are worth shipping and the checks are green. The merge is the publication approval, so do not merge it as routine repository housekeeping.
 
