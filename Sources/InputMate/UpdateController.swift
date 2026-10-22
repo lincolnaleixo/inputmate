@@ -2,14 +2,28 @@ import Combine
 import Sparkle
 import SwiftUI
 
+// InputMate is a menu bar app that never quits, so Sparkle's "install on quit"
+// would leave a downloaded update staged forever. Install it as soon as it is ready.
+final class InstallReadyUpdateDelegate: NSObject, SPUUpdaterDelegate {
+  func updater(
+    _ updater: SPUUpdater,
+    willInstallUpdateOnQuit item: SUAppcastItem,
+    immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
+  ) -> Bool {
+    immediateInstallHandler()
+    return true
+  }
+}
+
 @MainActor
 final class UpdateController {
   let updaterController: SPUStandardUpdaterController
+  private let updaterDelegate = InstallReadyUpdateDelegate()
 
   init() {
     updaterController = SPUStandardUpdaterController(
       startingUpdater: true,
-      updaterDelegate: nil,
+      updaterDelegate: updaterDelegate,
       userDriverDelegate: nil
     )
   }
