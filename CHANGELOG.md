@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/lincolnaleixo/inputmate/compare/v0.5.0...v0.5.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **updates:** install a downloaded update immediately ([#23](https://github.com/lincolnaleixo/inputmate/issues/23)) ([bf9fb7d](https://github.com/lincolnaleixo/inputmate/commit/bf9fb7db754b8107ae45fcdd73782abee5816e93))
+
 ## [0.5.0](https://github.com/lincolnaleixo/inputmate/compare/v0.4.0...v0.5.0) (2026-10-19)
 
 
